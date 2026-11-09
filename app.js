@@ -1,3 +1,4 @@
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 
 import {
@@ -17,15 +18,14 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
-  serverTimestamp
+  serverTimestamp,
+  writeBatch
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
-// --------------------------------------------------
 // 1. FIREBASE CONFIGURATION
-// --------------------------------------------------
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDBjWmYDXeMtr04wFrf2VKJfh2cxVoLeY8",
+  apiKey: "AIzaSyDBjWmYDXeMtr04wFrf2VKJfh2cxVoLe8",
   authDomain: "employee-management-system-v1.firebaseapp.com",
   projectId: "employee-management-system-v1",
   storageBucket: "employee-management-system-v1.firebasestorage.app",
@@ -38,9 +38,7 @@ const auth = getAuth(firebaseApp);
 const db = getFirestore(firebaseApp);
 const provider = new GoogleAuthProvider();
 
-// --------------------------------------------------
-// 2. HTML ELEMENTS AND USER VARIABLES
-// --------------------------------------------------
+// 2. HTML ELEMENTS
 
 const loginPage = document.getElementById("loginPage");
 const appPage = document.getElementById("app");
@@ -50,14 +48,14 @@ const loginMessage = document.getElementById("loginMessage");
 const userInfo = document.getElementById("userInfo");
 const pageTitle = document.getElementById("pageTitle");
 const pageContent = document.getElementById("pageContent");
+const sidebar = document.querySelector(".sidebar");
+const mainContent = document.querySelector(".main-content");
 
 let currentUser = null;
 let currentRole = null;
 let currentEmployees = [];
 
-// --------------------------------------------------
-// 3. GOOGLE LOGIN
-// --------------------------------------------------
+// 3. GOOGLE SIGN-IN
 
 googleLogin.addEventListener("click", async () => {
   loginMessage.textContent = "Signing in...";
@@ -65,87 +63,213 @@ googleLogin.addEventListener("click", async () => {
   try {
     await signInWithPopup(auth, provider);
   } catch (error) {
-    console.error("Login error:", error);
+    console.error(error);
     loginMessage.textContent = "Login failed: " + error.message;
   }
 });
 
-// --------------------------------------------------
-// 4. CHECK USER AUTHORIZATION
-// --------------------------------------------------
+// 4. AUTHENTICATION AND AUTOMATIC ONBOARDING
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
     currentUser = null;
     currentRole = null;
-
     loginPage.hidden = false;
     appPage.hidden = true;
     return;
   }
 
   try {
-    const userRef = doc(db, "authorizedUsers", user.uid);
-    const userSnapshot = await getDoc(userRef);
-
-    if (!userSnapshot.exists()) {
-      throw new Error("Your account is not authorized. Contact your manager.");
-    }
-
-    const userData = userSnapshot.data();
-
-    if (userData.active !== true) {
-      throw new Error("Your account is inactive. Contact your manager.");
-    }
-
-    if (!["manager", "employee"].includes(userData.role)) {
-      throw new Error("Invalid user role. Contact your manager.");
-    }
-
     currentUser = user;
-    currentRole = userData.role;
 
-    loginPage.hidden = true;
-    appPage.hidden = false;
+    if (!user.emailVerified) {
+      throw new Error("Please sign in with a verified Google account.");
+    }
 
-    userInfo.textContent =
-      `${user.displayName || user.email} | ${currentRole}`;
+    const authRef = doc(db, "authorizedUsers", user.uid);
+    const authSnapshot = await getDoc(authRef);
 
-    setupNavigation();
-    await showPage("dashboard");
+    // Existing authorized manager or employee
+    if (authSnapshot.exists()) {
+      const authData = authSnapshot.data();
+
+      if (authData.active !== true) {
+        await showBlockedPage("Your account is inactive. Contact your manager.");
+        return;
+      }
+
+      if (!["manager", "employee"].includes(authData.role)) {
+        await showBlockedPage("Your account has an invalid role.");
+        return;
+      }
+
+      currentRole = authData.role;
+
+      if (currentRole === "employee") {
+        const employeeRef = doc(db, "employees", user.uid);
+        const employeeSnapshot = await getDoc(employeeRef);
+
+        if (!employeeSnapshot.exists() ||
+            employeeSnapshot.data().status !== "Active") {
+          await showBlockedPage("Your employee profile is not active. Contact your manager.");
+          return;
+        }
+      }
+
+      await openApplication();
+      return;
+    }
+
+    // First-time sign-in: create pending employee profile
+    const employeeRef = doc(db, "employees", user.uid);
+    const employeeSnapshot = await getDoc(employeeRef);
+
+    if (!employeeSnapshot.exists()) {
+      await setDoc(employeeRef, {
+        uid: user.uid,
+        email: user.email.toLowerCase(),
+        employeeName: user.displayName || "",
+        status: "Pending",
+        createdAt: serverTimestamp()
+      });
+    }
+
+    const latestEmployee = await getDoc(employeeRef);
+    const status = latestEmployee.data()?.status;
+
+    if (status === "Active") {
+      await showBlockedPage(
+        "Your profile is active, but your login authorization is not ready. Contact your manager."
+      );
+    } else if (status === "Rejected") {
+      await showBlockedPage(
+        "Your access request was rejected. Please contact your manager."
+      );
+    } else {
+      await showPendingPage();
+    }
 
   } catch (error) {
-    console.error("Authorization error:", error);
+    console.error("Authentication error:", error);
 
-    loginMessage.textContent = error.message;
-    loginPage.hidden = false;
-    appPage.hidden = true;
-
-    await signOut(auth);
+    if (error.code === "permission-denied") {
+      await showBlockedPage(
+        "Access was denied. Please check your Firebase Security Rules or contact your manager."
+      );
+    } else {
+      await showBlockedPage(error.message);
+    }
   }
 });
 
-// --------------------------------------------------
-// 5. LOGOUT
-// --------------------------------------------------
+// 5. OPEN APPLICATION
+
+async function openApplication() {
+  loginPage.hidden = true;
+  appPage.hidden = false;
+
+  sidebar.hidden = false;
+  mainContent.style.marginLeft = "";
+
+  userInfo.textContent =
+    `${currentUser.displayName || currentUser.email} | ${currentRole}`;
+
+  setupNavigation();
+  await showPage("dashboard");
+}
+
+// 6. PENDING APPROVAL SCREEN
+
+async function showPendingPage() {
+  loginPage.hidden = true;
+  appPage.hidden = false;
+
+  sidebar.hidden = true;
+  mainContent.style.marginLeft = "0";
+
+  pageTitle.textContent = "Approval Pending";
+
+  pageContent.innerHTML = `
+    <div class="approval-message">
+      <h2>Welcome, ${escapeHTML(currentUser.displayName || "Employee")}</h2>
+      <h3>Your registration is awaiting manager approval.</h3>
+      <p>Account: ${escapeHTML(currentUser.email)}</p>
+      <p>Your manager must approve your account before you can access the system.</p>
+      <button id="checkApprovalButton">Check Approval Status</button>
+      <button id="pendingLogoutButton">Logout</button>
+      <p id="approvalStatusMessage"></p>
+    </div>
+  `;
+
+  document.getElementById("checkApprovalButton")
+    .addEventListener("click", async () => {
+      const message = document.getElementById("approvalStatusMessage");
+      message.textContent = "Checking...";
+
+      try {
+        const authSnapshot = await getDoc(
+          doc(db, "authorizedUsers", currentUser.uid)
+        );
+
+        if (authSnapshot.exists() &&
+            authSnapshot.data().active === true &&
+            authSnapshot.data().role === "employee") {
+          await openApplication();
+        } else {
+          const employeeSnapshot = await getDoc(
+            doc(db, "employees", currentUser.uid)
+          );
+
+          const status = employeeSnapshot.data()?.status;
+
+          message.textContent =
+            status === "Rejected"
+              ? "Your request was rejected. Contact your manager."
+              : "Your request is still awaiting approval.";
+        }
+      } catch (error) {
+        message.textContent = "Unable to check status: " + error.message;
+      }
+    });
+
+  document.getElementById("pendingLogoutButton")
+    .addEventListener("click", () => signOut(auth));
+}
+
+// 7. BLOCKED ACCOUNT SCREEN
+
+async function showBlockedPage(messageText) {
+  loginPage.hidden = true;
+  appPage.hidden = false;
+
+  sidebar.hidden = true;
+  mainContent.style.marginLeft = "0";
+
+  pageTitle.textContent = "Account Access";
+
+  pageContent.innerHTML = `
+    <div class="approval-message">
+      <h2>Access not available</h2>
+      <p>${escapeHTML(messageText)}</p>
+      <button id="blockedLogoutButton">Logout</button>
+    </div>
+  `;
+
+  document.getElementById("blockedLogoutButton")
+    .addEventListener("click", () => signOut(auth));
+}
+
+// 8. LOGOUT
 
 logoutButton.addEventListener("click", async () => {
-  try {
-    await signOut(auth);
-  } catch (error) {
-    alert("Logout failed: " + error.message);
-  }
+  await signOut(auth);
 });
 
-// --------------------------------------------------
-// 6. NAVIGATION
-// --------------------------------------------------
+// 9. NAVIGATION
 
 function setupNavigation() {
   document.querySelectorAll("[data-page]").forEach((button) => {
-    button.onclick = () => {
-      showPage(button.dataset.page);
-    };
+    button.onclick = () => showPage(button.dataset.page);
   });
 }
 
@@ -165,464 +289,276 @@ async function showPage(page) {
     pageContent.innerHTML = `
       <h2>Welcome to Employee Management System</h2>
       <p>Welcome, ${escapeHTML(currentUser.displayName || currentUser.email)}.</p>
-      <p>Your role: <strong>${escapeHTML(currentRole)}</strong></p>
-      <p>Select a module from the left navigation menu.</p>
+      <p>Role: ${escapeHTML(currentRole)}</p>
     `;
-  }
-
-  else if (page === "employees") {
+  } else if (page === "employees") {
     await loadEmployeePage();
-  }
-
-  else {
+  } else {
     pageContent.innerHTML = `
-      <h2>${escapeHTML(titles[page] || "Module")}</h2>
-      <p>This module will be developed in the next step.</p>
+      <h2>${escapeHTML(titles[page])}</h2>
+      <p>This module will be developed next.</p>
     `;
   }
 }
 
-// --------------------------------------------------
-// 7. HTML ESCAPING
-// --------------------------------------------------
+// 10. SAFE HTML DISPLAY
 
 function escapeHTML(value) {
-  return String(value ?? "").replace(/[&<>"']/g, (character) => {
-    const replacements = {
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#039;"
-    };
-
-    return replacements[character];
-  });
+  return String(value ?? "").replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;"
+  })[character]);
 }
 
-// --------------------------------------------------
-// 8. LOAD EMPLOYEE DETAILS PAGE
-// --------------------------------------------------
+// 11. EMPLOYEE MODULE
 
 async function loadEmployeePage() {
-  pageContent.innerHTML = "<p>Loading employee details...</p>";
+  pageContent.innerHTML = "<p>Loading employee information...</p>";
 
   try {
     if (currentRole === "manager") {
-      await loadManagerEmployeePage();
+      await loadManagerEmployees();
     } else {
-      await loadOwnEmployeeProfile();
+      await loadOwnProfile();
     }
   } catch (error) {
-    console.error("Employee page error:", error);
-
-    pageContent.innerHTML = `
-      <h2>Unable to load employee details</h2>
-      <p>${escapeHTML(error.message)}</p>
-    `;
+    console.error(error);
+    pageContent.innerHTML =
+      `<p>Unable to load employees: ${escapeHTML(error.message)}</p>`;
   }
 }
 
-// --------------------------------------------------
-// 9. MANAGER: LOAD ALL EMPLOYEES
-// --------------------------------------------------
+// 12. MANAGER: VIEW EMPLOYEES AND REQUESTS
 
-async function loadManagerEmployeePage() {
-  const employeeCollection = collection(db, "employees");
-  const snapshot = await getDocs(employeeCollection);
+async function loadManagerEmployees() {
+  const snapshot = await getDocs(collection(db, "employees"));
 
-  currentEmployees = snapshot.docs.map((employeeDoc) => ({
-    uid: employeeDoc.id,
-    ...employeeDoc.data()
+  currentEmployees = snapshot.docs.map((item) => ({
+    uid: item.id,
+    ...item.data()
   }));
 
-  renderManagerEmployeePage();
+  renderManagerEmployees();
 }
 
-function renderManagerEmployeePage() {
-  const rows = currentEmployees.map((employee) => `
+function renderManagerEmployees() {
+  const pending = currentEmployees.filter(
+    (employee) => employee.status === "Pending"
+  );
+
+  const approved = currentEmployees.filter(
+    (employee) => employee.status === "Active"
+  );
+
+  const rejected = currentEmployees.filter(
+    (employee) => employee.status === "Rejected"
+  );
+
+  const pendingRows = pending.map((employee) => `
     <tr>
-      <td>${escapeHTML(employee.employeeId)}</td>
       <td>${escapeHTML(employee.employeeName)}</td>
       <td>${escapeHTML(employee.email)}</td>
-      <td>${escapeHTML(employee.department)}</td>
-      <td>${escapeHTML(employee.designation)}</td>
-      <td>${escapeHTML(employee.status)}</td>
+      <td>Pending</td>
       <td>
-        <button class="edit-button"
-          data-action="edit"
-          data-uid="${escapeHTML(employee.uid)}">
-          Edit
-        </button>
-
-        <button class="delete-button"
-          data-action="delete"
-          data-uid="${escapeHTML(employee.uid)}">
-          Delete
-        </button>
+        <button data-approve="${escapeHTML(employee.uid)}">Approve</button>
+        <button data-reject="${escapeHTML(employee.uid)}">Reject</button>
       </td>
     </tr>
   `).join("");
 
+  const approvedRows = approved.map((employee) => `
+    <tr>
+      <td>${escapeHTML(employee.employeeId || "-")}</td>
+      <td>${escapeHTML(employee.employeeName)}</td>
+      <td>${escapeHTML(employee.email)}</td>
+      <td>${escapeHTML(employee.department || "-")}</td>
+      <td>${escapeHTML(employee.designation || "-")}</td>
+      <td>${escapeHTML(employee.status)}</td>
+    </tr>
+  `).join("");
+
+  const rejectedRows = rejected.map((employee) => `
+    <tr>
+      <td>${escapeHTML(employee.employeeName)}</td>
+      <td>${escapeHTML(employee.email)}</td>
+      <td>Rejected</td>
+    </tr>
+  `).join("");
+
   pageContent.innerHTML = `
-    <div class="employee-header">
-      <div>
-        <h2>Employee Details</h2>
-        <p>Total employees: ${currentEmployees.length}</p>
-      </div>
+    <h2>Employee Management</h2>
 
-      <button id="addEmployeeButton">+ Add Employee</button>
-    </div>
-
-    <div id="employeeFormContainer"></div>
-
+    <h3>Pending Approval (${pending.length})</h3>
     <div class="table-container">
       <table class="employee-table">
         <thead>
           <tr>
-            <th>Employee ID</th>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Department</th>
-            <th>Designation</th>
-            <th>Status</th>
-            <th>Actions</th>
+            <th>Name</th><th>Email</th><th>Status</th><th>Action</th>
           </tr>
         </thead>
-
         <tbody>
-          ${rows || `
-            <tr>
-              <td colspan="7">No employee records found.</td>
-            </tr>
-          `}
+          ${pendingRows || '<tr><td colspan="4">No pending requests.</td></tr>'}
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Approved Employees (${approved.length})</h3>
+    <div class="table-container">
+      <table class="employee-table">
+        <thead>
+          <tr>
+            <th>Employee ID</th><th>Name</th><th>Email</th>
+            <th>Department</th><th>Designation</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${approvedRows || '<tr><td colspan="6">No approved employees.</td></tr>'}
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Rejected Requests (${rejected.length})</h3>
+    <div class="table-container">
+      <table class="employee-table">
+        <thead>
+          <tr><th>Name</th><th>Email</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          ${rejectedRows || '<tr><td colspan="3">No rejected requests.</td></tr>'}
         </tbody>
       </table>
     </div>
   `;
 
-  document.getElementById("addEmployeeButton")
-    .addEventListener("click", () => {
-      showEmployeeForm();
+  document.querySelectorAll("[data-approve]").forEach((button) => {
+    button.addEventListener("click", () => {
+      approveEmployee(button.dataset.approve);
     });
+  });
 
-  document.querySelectorAll("[data-action='edit']")
-    .forEach((button) => {
-      button.addEventListener("click", () => {
-        const employee = currentEmployees.find(
-          (item) => item.uid === button.dataset.uid
-        );
-
-        if (employee) showEmployeeForm(employee);
-      });
+  document.querySelectorAll("[data-reject]").forEach((button) => {
+    button.addEventListener("click", () => {
+      rejectEmployee(button.dataset.reject);
     });
-
-  document.querySelectorAll("[data-action='delete']")
-    .forEach((button) => {
-      button.addEventListener("click", async () => {
-        await deleteEmployee(button.dataset.uid);
-      });
-    });
+  });
 }
 
-// --------------------------------------------------
-// 10. MANAGER: ADD / EDIT EMPLOYEE FORM
-// --------------------------------------------------
+// 13. MANAGER: APPROVE EMPLOYEE
 
-function showEmployeeForm(employee = null) {
-  const isEditing = employee !== null;
+async function approveEmployee(uid) {
+  const employee = currentEmployees.find((item) => item.uid === uid);
 
-  const formContainer = document.getElementById(
-    "employeeFormContainer"
-  );
+  if (!employee || employee.status !== "Pending") return;
 
-  formContainer.innerHTML = `
-    <div class="employee-form-card">
+  const employeeId = prompt("Enter Employee ID (example: EMP001):");
+  if (!employeeId?.trim()) return;
 
-      <h3>${isEditing ? "Edit Employee" : "Add New Employee"}</h3>
+  const department = prompt("Enter Department:");
+  if (!department?.trim()) return;
 
-      <form id="employeeForm">
+  const designation = prompt("Enter Designation:");
+  if (!designation?.trim()) return;
 
-        <label>Firebase Authentication UID *</label>
-        <input
-          type="text"
-          name="uid"
-          value="${escapeHTML(employee?.uid || "")}"
-          ${isEditing ? "readonly" : ""}
-          required
-          placeholder="Enter employee Firebase UID"
-        >
-
-        <label>Employee ID *</label>
-        <input
-          type="text"
-          name="employeeId"
-          value="${escapeHTML(employee?.employeeId || "")}"
-          required
-          placeholder="Example: EMP001"
-        >
-
-        <label>Employee Name *</label>
-        <input
-          type="text"
-          name="employeeName"
-          value="${escapeHTML(employee?.employeeName || "")}"
-          required
-          placeholder="Enter employee name"
-        >
-
-        <label>Email *</label>
-        <input
-          type="email"
-          name="email"
-          value="${escapeHTML(employee?.email || "")}"
-          required
-          placeholder="Enter Google account email"
-        >
-
-        <label>Department *</label>
-        <input
-          type="text"
-          name="department"
-          value="${escapeHTML(employee?.department || "")}"
-          required
-          placeholder="Example: Engineering"
-        >
-
-        <label>Designation *</label>
-        <input
-          type="text"
-          name="designation"
-          value="${escapeHTML(employee?.designation || "")}"
-          required
-          placeholder="Example: Design Engineer"
-        >
-
-        <label>Joining Date *</label>
-        <input
-          type="date"
-          name="joiningDate"
-          value="${escapeHTML(employee?.joiningDate || "")}"
-          required
-        >
-
-        <label>Reporting Manager Email *</label>
-        <input
-          type="email"
-          name="managerEmail"
-          value="${escapeHTML(employee?.managerEmail || "")}"
-          required
-          placeholder="Enter reporting manager email"
-        >
-
-        <label>Employment Status</label>
-        <select name="status">
-          <option value="Active"
-            ${employee?.status === "Active" || !employee ? "selected" : ""}>
-            Active
-          </option>
-
-          <option value="Inactive"
-            ${employee?.status === "Inactive" ? "selected" : ""}>
-            Inactive
-          </option>
-        </select>
-
-        <div class="form-actions">
-          <button type="submit">
-            ${isEditing ? "Update Employee" : "Save Employee"}
-          </button>
-
-          <button type="button" id="cancelEmployeeForm">
-            Cancel
-          </button>
-        </div>
-
-        <p id="employeeFormMessage" role="status"></p>
-
-      </form>
-    </div>
-  `;
-
-  document.getElementById("cancelEmployeeForm")
-    .addEventListener("click", () => {
-      formContainer.innerHTML = "";
-    });
-
-  document.getElementById("employeeForm")
-    .addEventListener("submit", async (event) => {
-      event.preventDefault();
-
-      await saveEmployee(event, isEditing);
-    });
-}
-
-// --------------------------------------------------
-// 11. MANAGER: SAVE EMPLOYEE
-// --------------------------------------------------
-
-async function saveEmployee(event, isEditing) {
-  const form = event.target;
-  const message = document.getElementById("employeeFormMessage");
-  const submitButton = form.querySelector("button[type='submit']");
-
-  const formData = new FormData(form);
-
-  const uid = formData.get("uid").trim();
-
-  const employeeData = {
-    employeeId: formData.get("employeeId").trim(),
-    employeeName: formData.get("employeeName").trim(),
-    email: formData.get("email").trim().toLowerCase(),
-    department: formData.get("department").trim(),
-    designation: formData.get("designation").trim(),
-    joiningDate: formData.get("joiningDate"),
-    managerEmail: formData.get("managerEmail").trim().toLowerCase(),
-    status: formData.get("status")
-  };
-
-  if (!uid || Object.values(employeeData).some((value) => !value)) {
-    message.textContent = "Please complete all required fields.";
+  const joiningDate = prompt("Enter Joining Date (YYYY-MM-DD):");
+  if (!joiningDate?.trim() ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(joiningDate)) {
+    alert("Enter the joining date in YYYY-MM-DD format.");
     return;
   }
 
-  if (currentRole !== "manager") {
-    message.textContent = "Only managers can save employee records.";
-    return;
-  }
-
-  const duplicate = currentEmployees.find((employee) =>
-    employee.employeeId.toLowerCase() === employeeData.employeeId.toLowerCase()
-    && employee.uid !== uid
-  );
-
-  if (duplicate) {
-    message.textContent = "This Employee ID is already in use.";
-    return;
-  }
-
-  submitButton.disabled = true;
-  message.textContent = "Saving employee...";
+  const managerEmail = currentUser.email.toLowerCase();
 
   try {
+    const batch = writeBatch(db);
+
     const employeeRef = doc(db, "employees", uid);
+    const authRef = doc(db, "authorizedUsers", uid);
 
-    if (isEditing) {
-      await updateDoc(employeeRef, {
-        ...employeeData,
-        updatedAt: serverTimestamp()
-      });
-    } else {
-      const existingEmployee = await getDoc(employeeRef);
+    batch.update(employeeRef, {
+      employeeId: employeeId.trim(),
+      department: department.trim(),
+      designation: designation.trim(),
+      joiningDate,
+      managerEmail,
+      status: "Active",
+      approvedAt: serverTimestamp(),
+      approvedBy: currentUser.uid,
+      updatedAt: serverTimestamp()
+    });
 
-      if (existingEmployee.exists()) {
-        throw new Error("An employee record already exists for this UID.");
-      }
+    batch.set(authRef, {
+      email: employee.email.toLowerCase(),
+      role: "employee",
+      active: true,
+      createdAt: serverTimestamp()
+    });
 
-      await setDoc(employeeRef, {
-        ...employeeData,
-        uid: uid,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
-    }
+    await batch.commit();
 
-    alert(isEditing
-      ? "Employee updated successfully."
-      : "Employee added successfully."
-    );
-
-    await loadManagerEmployeePage();
+    alert("Employee approved successfully!");
+    await loadManagerEmployees();
 
   } catch (error) {
-    console.error("Save employee error:", error);
-    message.textContent = "Error: " + error.message;
-    submitButton.disabled = false;
+    console.error(error);
+    alert("Approval failed: " + error.message);
   }
 }
 
-// --------------------------------------------------
-// 12. MANAGER: DELETE EMPLOYEE
-// --------------------------------------------------
+// 14. MANAGER: REJECT EMPLOYEE
 
-async function deleteEmployee(uid) {
-  if (currentRole !== "manager") {
-    alert("Only managers can delete employee records.");
+async function rejectEmployee(uid) {
+  const employee = currentEmployees.find((item) => item.uid === uid);
+
+  if (!employee || employee.status !== "Pending") return;
+
+  if (!confirm(`Reject access request for ${employee.employeeName}?`)) {
     return;
   }
-
-  const employee = currentEmployees.find(
-    (item) => item.uid === uid
-  );
-
-  if (!employee) return;
-
-  const confirmed = confirm(
-    `Are you sure you want to delete ${employee.employeeName}'s record?`
-  );
-
-  if (!confirmed) return;
 
   try {
-    await deleteDoc(doc(db, "employees", uid));
+    await updateDoc(doc(db, "employees", uid), {
+      status: "Rejected",
+      rejectedAt: serverTimestamp(),
+      rejectedBy: currentUser.uid
+    });
 
-    alert("Employee record deleted successfully.");
-
-    await loadManagerEmployeePage();
+    alert("Employee request rejected.");
+    await loadManagerEmployees();
 
   } catch (error) {
-    console.error("Delete employee error:", error);
-    alert("Unable to delete employee: " + error.message);
+    console.error(error);
+    alert("Rejection failed: " + error.message);
   }
 }
 
-// --------------------------------------------------
-// 13. EMPLOYEE: VIEW OWN PROFILE ONLY
-// --------------------------------------------------
+// 15. EMPLOYEE: VIEW OWN PROFILE
 
-async function loadOwnEmployeeProfile() {
-  const employeeRef = doc(db, "employees", currentUser.uid);
-  const employeeSnapshot = await getDoc(employeeRef);
+async function loadOwnProfile() {
+  const snapshot = await getDoc(
+    doc(db, "employees", currentUser.uid)
+  );
 
-  if (!employeeSnapshot.exists()) {
-    pageContent.innerHTML = `
-      <h2>Employee Profile Not Found</h2>
-      <p>Please contact your manager to create your employee record.</p>
-    `;
+  if (!snapshot.exists()) {
+    pageContent.innerHTML = "<p>Employee profile not found.</p>";
     return;
   }
 
-  const employee = employeeSnapshot.data();
+  const employee = snapshot.data();
 
   pageContent.innerHTML = `
-    <h2>My Employee Details</h2>
-
+    <h2>My Employee Profile</h2>
     <div class="profile-card">
-
-      <p><strong>Employee ID:</strong>
-        ${escapeHTML(employee.employeeId)}</p>
-
-      <p><strong>Name:</strong>
-        ${escapeHTML(employee.employeeName)}</p>
-
-      <p><strong>Email:</strong>
-        ${escapeHTML(employee.email)}</p>
-
-      <p><strong>Department:</strong>
-        ${escapeHTML(employee.department)}</p>
-
-      <p><strong>Designation:</strong>
-        ${escapeHTML(employee.designation)}</p>
-
-      <p><strong>Joining Date:</strong>
-        ${escapeHTML(employee.joiningDate)}</p>
-
-      <p><strong>Reporting Manager:</strong>
-        ${escapeHTML(employee.managerEmail)}</p>
-
-      <p><strong>Status:</strong>
-        ${escapeHTML(employee.status)}</p>
-
+      <p><strong>Employee ID:</strong> ${escapeHTML(employee.employeeId)}</p>
+      <p><strong>Name:</strong> ${escapeHTML(employee.employeeName)}</p>
+      <p><strong>Email:</strong> ${escapeHTML(employee.email)}</p>
+      <p><strong>Department:</strong> ${escapeHTML(employee.department)}</p>
+      <p><strong>Designation:</strong> ${escapeHTML(employee.designation)}</p>
+      <p><strong>Joining Date:</strong> ${escapeHTML(employee.joiningDate)}</p>
+      <p><strong>Reporting Manager:</strong> ${escapeHTML(employee.managerEmail)}</p>
+      <p><strong>Status:</strong> ${escapeHTML(employee.status)}</p>
     </div>
   `;
 }
