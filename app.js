@@ -22,7 +22,7 @@ const firebaseConfig = {
   projectId: "employee-management-system-v1",
   storageBucket: "employee-management-system-v1.firebasestorage.app",
   messagingSenderId: "793945224801",
-  appId: "1:945224801:web:1bc24e7a79fe018c31dc20"
+  appId: "1:793945224801:web:1bc24e7a79fe018c31dc20"
 };
 
 // 2. Initialize Firebase
