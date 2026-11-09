@@ -4,49 +4,179 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#17365D">
-  <meta name="description" content="Employee Management System">
+  <meta name="theme-color" content="#173b67">
+
   <title>Employee Management System</title>
-  <link rel="manifest" href="manifest.json">
+
   <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
-  <div class="login-container" id="loginPage">
-    <div class="login-card">
-      <h1>Employee Management System</h1>
-      <p>Welcome! Sign in using your approved Google account.</p>
-      <button id="googleLogin">Sign in with Google</button>
-      <p id="loginMessage" role="status"></p>
-    </div>
-  </div>
+  <!-- LOGIN SCREEN -->
+  <section id="loginScreen" class="login-screen">
 
-  <div id="app" hidden>
+    <div class="login-card">
+
+      <div class="brand-logo">EMS</div>
+
+      <h1>Employee Management System</h1>
+      <p class="login-subtitle">
+        Welcome! Sign in to access your account.
+      </p>
+
+      <!-- EMPLOYEE LOGIN -->
+      <div class="login-section">
+
+        <h2>Employee Login</h2>
+
+        <label for="employeeId">Employee ID</label>
+        <input
+          type="text"
+          id="employeeId"
+          placeholder="Enter your Employee ID"
+          autocomplete="username"
+        >
+
+        <label for="employeePassword">Password</label>
+        <input
+          type="password"
+          id="employeePassword"
+          placeholder="Enter your password"
+          autocomplete="current-password"
+        >
+
+        <button id="employeeLoginButton" class="primary-button">
+          Login as Employee
+        </button>
+
+      </div>
+
+      <div class="login-divider">
+        <span>OR</span>
+      </div>
+
+      <!-- MANAGER LOGIN -->
+      <div class="login-section manager-login">
+
+        <h2>Manager Login</h2>
+
+        <button id="googleLogin" class="google-button">
+          <span>G</span> Sign in with Google
+        </button>
+
+      </div>
+
+      <p id="loginMessage" class="message"></p>
+
+      <p class="login-footer">
+        Employee accounts are created by the manager.
+      </p>
+
+    </div>
+
+  </section>
+
+
+  <!-- MAIN APPLICATION -->
+  <div id="app" class="app-container hidden">
+
+    <!-- SIDEBAR -->
     <aside class="sidebar">
-      <h2>EMS</h2>
-      <nav>
-        <button data-page="dashboard">Dashboard</button>
-        <button data-page="employees">Employee Details</button>
-        <button data-page="leave">Leave Management</button>
-        <button data-page="attendance">Attendance</button>
-        <button data-page="reports">Reports</button>
-        <button data-page="settings">Settings</button>
+
+      <div class="sidebar-brand">
+        <div class="brand-logo small-logo">EMS</div>
+        <div>
+          <h2>EMS</h2>
+          <span>Management Portal</span>
+        </div>
+      </div>
+
+      <div class="sidebar-user">
+        <div class="user-avatar" id="userAvatar">U</div>
+        <div class="user-info">
+          <strong id="sidebarUserName">User</strong>
+          <span id="sidebarUserRole">Employee</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+
+        <p class="nav-heading">MAIN MENU</p>
+
+        <button class="nav-button active" data-page="dashboard">
+          <span>▦</span> Dashboard
+        </button>
+
+        <button class="nav-button manager-only" data-page="employees">
+          <span>♙</span> Employee Details
+        </button>
+
+        <button class="nav-button" data-page="leave">
+          <span>▤</span> Leave Management
+        </button>
+
+        <button class="nav-button" data-page="attendance">
+          <span>◷</span> Attendance
+        </button>
+
+        <button class="nav-button manager-only" data-page="reports">
+          <span>▥</span> Reports
+        </button>
+
+        <p class="nav-heading">ACCOUNT</p>
+
+        <button class="nav-button" data-page="settings">
+          <span>⚙</span> Settings
+        </button>
+
       </nav>
-      <button id="logoutButton">Logout</button>
+
+      <div class="sidebar-bottom">
+        <button id="logoutButton" class="logout-button">
+          ⇥ Logout
+        </button>
+      </div>
+
     </aside>
 
+
+    <!-- MAIN CONTENT -->
     <main class="main-content">
-      <header>
-        <h1 id="pageTitle">Dashboard</h1>
-        <p id="userInfo"></p>
+
+      <header class="topbar">
+
+        <div>
+          <h1 id="pageTitle">Dashboard</h1>
+          <p>Employee Management System</p>
+        </div>
+
+        <div class="topbar-user">
+          <span id="headerUserName">User</span>
+          <div class="user-avatar header-avatar" id="headerAvatar">U</div>
+        </div>
+
       </header>
-      <section id="pageContent">
-        <h2>Welcome to Employee Management System</h2>
-        <p>Your employee management workspace.</p>
+
+      <section id="pageContent" class="page-content">
+
+        <div class="loading-message">
+          Loading your dashboard...
+        </div>
+
       </section>
+
+      <footer class="app-footer">
+        Employee Management System
+      </footer>
+
     </main>
+
   </div>
 
+
+  <!-- APPLICATION JAVASCRIPT -->
   <script type="module" src="app.js"></script>
+
 </body>
 </html>
