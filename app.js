@@ -25,7 +25,7 @@ import {
 // 1. FIREBASE CONFIGURATION
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDBjWmYDXeMtr04wFrf2VKJfh2cxVoLe8",
+  apiKey: "AIzaSyDBjWmYDXeMtr04wFrf2VKJfh2cxVoLeY8",
   authDomain: "employee-management-system-v1.firebaseapp.com",
   projectId: "employee-management-system-v1",
   storageBucket: "employee-management-system-v1.firebasestorage.app",
