@@ -1,0 +1,52 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#17365D">
+  <meta name="description" content="Employee Management System">
+  <title>Employee Management System</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="login-container" id="loginPage">
+    <div class="login-card">
+      <h1>Employee Management System</h1>
+      <p>Welcome! Sign in using your approved Google account.</p>
+      <button id="googleLogin">Sign in with Google</button>
+      <p id="loginMessage" role="status"></p>
+    </div>
+  </div>
+
+  <div id="app" hidden>
+    <aside class="sidebar">
+      <h2>EMS</h2>
+      <nav>
+        <button data-page="dashboard">Dashboard</button>
+        <button data-page="employees">Employee Details</button>
+        <button data-page="leave">Leave Management</button>
+        <button data-page="attendance">Attendance</button>
+        <button data-page="reports">Reports</button>
+        <button data-page="settings">Settings</button>
+      </nav>
+      <button id="logoutButton">Logout</button>
+    </aside>
+
+    <main class="main-content">
+      <header>
+        <h1 id="pageTitle">Dashboard</h1>
+        <p id="userInfo"></p>
+      </header>
+      <section id="pageContent">
+        <h2>Welcome to Employee Management System</h2>
+        <p>Your employee management workspace.</p>
+      </section>
+    </main>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
