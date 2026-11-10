@@ -29,7 +29,8 @@ import {
   query,
   where,
   orderBy,
-  updateDoc
+  updateDoc,
+  setDoc
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 
