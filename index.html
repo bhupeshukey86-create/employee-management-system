@@ -11,9 +11,9 @@
 <body>
 
   <!-- LOGIN SCREEN -->
-  <div id="loginScreen" class="login-screen">
+  <section id="loginScreen" class="login-screen">
 
-    <div class="login-container">
+    <div class="login-card">
 
       <div class="login-header">
         <h1>Employee Management System</h1>
@@ -23,23 +23,27 @@
       <div class="login-section">
         <h2>Employee Login</h2>
 
-        <label for="employeeId">Employee ID</label>
-        <input
-          type="text"
-          id="employeeId"
-          placeholder="Enter Employee ID"
-          autocomplete="username"
-        >
+        <div class="form-group">
+          <label for="employeeId">Employee ID</label>
+          <input
+            type="text"
+            id="employeeId"
+            placeholder="Enter Employee ID"
+            autocomplete="username"
+          >
+        </div>
 
-        <label for="employeePassword">Password</label>
-        <input
-          type="password"
-          id="employeePassword"
-          placeholder="Enter Password"
-          autocomplete="current-password"
-        >
+        <div class="form-group">
+          <label for="employeePassword">Password</label>
+          <input
+            type="password"
+            id="employeePassword"
+            placeholder="Enter Password"
+            autocomplete="current-password"
+          >
+        </div>
 
-        <button id="employeeLoginButton" class="primary-button">
+        <button id="employeeLoginButton" class="login-button">
           Employee Login
         </button>
       </div>
@@ -48,7 +52,7 @@
         <span>OR</span>
       </div>
 
-      <div class="login-section manager-login-section">
+      <div class="login-section">
         <h2>Manager Login</h2>
 
         <button id="googleLogin" class="google-button">
@@ -59,11 +63,11 @@
       <div id="loginMessage" class="message"></div>
 
     </div>
-  </div>
+  </section>
 
 
   <!-- MAIN APPLICATION -->
-  <div id="app" class="app-layout hidden">
+  <div id="app" class="app-container hidden">
 
     <!-- SIDEBAR -->
     <aside class="sidebar">
@@ -74,35 +78,48 @@
       </div>
 
       <div class="sidebar-user">
-
         <div id="userAvatar" class="avatar">U</div>
 
         <div class="sidebar-user-info">
           <h3 id="sidebarUserName">User</h3>
           <p id="sidebarUserRole">Role</p>
         </div>
-
       </div>
 
       <nav class="sidebar-navigation">
 
-        <button class="nav-button active" data-page="dashboard">
+        <button
+          class="nav-button active"
+          data-page="dashboard"
+        >
           <span>Dashboard</span>
         </button>
 
-        <button class="nav-button manager-only hidden" data-page="employees">
+        <button
+          class="nav-button manager-only hidden"
+          data-page="employees"
+        >
           <span>Employee Details</span>
         </button>
 
-        <button class="nav-button" data-page="leave">
+        <button
+          class="nav-button"
+          data-page="leave"
+        >
           <span>Leave Management</span>
         </button>
 
-        <button class="nav-button manager-only hidden" data-page="reports">
+        <button
+          class="nav-button manager-only hidden"
+          data-page="reports"
+        >
           <span>Reports</span>
         </button>
 
-        <button class="nav-button" data-page="settings">
+        <button
+          class="nav-button"
+          data-page="settings"
+        >
           <span>Settings</span>
         </button>
 
@@ -117,10 +134,9 @@
     </aside>
 
 
-    <!-- MAIN CONTENT AREA -->
+    <!-- MAIN CONTENT -->
     <main class="main-content">
 
-      <!-- TOP HEADER -->
       <header class="top-header">
 
         <div>
@@ -129,7 +145,9 @@
 
         <div class="header-user">
 
-          <span id="headerUserName">User</span>
+          <div class="header-user-info">
+            <span id="headerUserName">User</span>
+          </div>
 
           <div id="headerAvatar" class="avatar">
             U
@@ -142,11 +160,7 @@
 
       <!-- DYNAMIC PAGE CONTENT -->
       <section id="pageContent" class="page-content">
-
-        <div class="loading-message">
-          Loading application...
-        </div>
-
+        <p>Loading...</p>
       </section>
 
     </main>
@@ -154,7 +168,7 @@
   </div>
 
 
-  <!-- JAVASCRIPT -->
+  <!-- FIREBASE APPLICATION -->
   <script type="module" src="app.js"></script>
 
 </body>
