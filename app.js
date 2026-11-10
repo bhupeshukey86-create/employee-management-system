@@ -1,8 +1,8 @@
 
-/* =====================================================
-   EMPLOYEE MANAGEMENT SYSTEM
-   Firebase Authentication + Firestore
-   ===================================================== */
+// ============================================
+// EMPLOYEE MANAGEMENT SYSTEM
+// Firebase Authentication + Firestore
+// ============================================
 
 import { initializeApp, getApps } from
   "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
@@ -33,10 +33,10 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
 
-/* =====================================================
-   1. FIREBASE CONFIGURATION
-   DO NOT CHANGE THESE VALUES
-   ===================================================== */
+// ============================================
+// 1. FIREBASE CONFIGURATION
+// KEEP THESE VALUES UNCHANGED
+// ============================================
 
 const firebaseConfig = {
   apiKey: "AIzaSyDBjWmYDXeMtr04wFrf2VKJfh2cxVoLeY8",
@@ -55,64 +55,37 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const googleProvider = new GoogleAuthProvider();
 
-
-// Secondary Firebase app keeps manager login unchanged
-// when creating employee accounts.
-
 const employeeApp = getApps().find(
-  existingApp => existingApp.name === "employeeCreator"
+  item => item.name === "employeeCreator"
 ) || initializeApp(firebaseConfig, "employeeCreator");
 
 const employeeAuth = getAuth(employeeApp);
 
 
-/* =====================================================
-   2. GLOBAL APPLICATION STATE
-   ===================================================== */
+// ============================================
+// 2. GLOBAL VARIABLES
+// ============================================
 
 let currentUser = null;
 let currentProfile = null;
 let currentRole = null;
-
-
-/* =====================================================
-   3. HTML ELEMENT REFERENCES
-   ===================================================== */
 
 const loginScreen = document.getElementById("loginScreen");
 const application = document.getElementById("app");
 const loginMessage = document.getElementById("loginMessage");
 
 
-/* =====================================================
-   4. HELPER FUNCTIONS
-   ===================================================== */
+// ============================================
+// 3. HELPER FUNCTIONS
+// ============================================
 
-function showLoginMessage(message, type = "error") {
-  loginMessage.textContent = message;
-
-  loginMessage.className =
-    type === "success"
-      ? "message success-message"
-      : "message";
+function normalizeEmployeeId(value) {
+  return value.trim().toLowerCase();
 }
-
-
-function setLoading(button, loading, originalText) {
-  button.disabled = loading;
-  button.textContent = loading ? "Please wait..." : originalText;
-}
-
-
-function normalizeEmployeeId(employeeId) {
-  return employeeId.trim().toLowerCase();
-}
-
 
 function employeeLoginEmail(employeeId) {
   return `${normalizeEmployeeId(employeeId)}@employee-management-system-v1.firebaseapp.com`;
 }
-
 
 function escapeHTML(value) {
   return String(value ?? "").replace(/[&<>"']/g, character => ({
@@ -124,18 +97,26 @@ function escapeHTML(value) {
   })[character]);
 }
 
+function showLoginMessage(message, type = "error") {
+  loginMessage.textContent = message;
+  loginMessage.className =
+    type === "success" ? "message success-message" : "message";
+}
+
+function setLoading(button, loading, originalText) {
+  button.disabled = loading;
+  button.textContent = loading ? "Please wait..." : originalText;
+}
 
 function showApplication() {
   loginScreen.classList.add("hidden");
   application.classList.remove("hidden");
 }
 
-
 function showLogin() {
   application.classList.add("hidden");
   loginScreen.classList.remove("hidden");
 }
-
 
 function updateUserDetails(name, role) {
   const displayName = name || "User";
@@ -148,65 +129,32 @@ function updateUserDetails(name, role) {
   document.getElementById("headerAvatar").textContent = initial;
 }
 
-
-function showMessage(elementId, message, type = "error") {
-  const element = document.getElementById(elementId);
-
-  if (!element) return;
-
-  element.innerHTML = `
-    <div class="${type}-message">
-      ${escapeHTML(message)}
-    </div>
-  `;
+function formatDate(value) {
+  if (!value) return "-";
+  return new Date(value + "T00:00:00").toLocaleDateString("en-IN");
 }
-
-
-function formatDate(dateValue) {
-  if (!dateValue) return "-";
-
-  const date = new Date(dateValue + "T00:00:00");
-
-  return date.toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric"
-  });
-}
-
 
 function calculateLeaveDays(fromDate, toDate) {
   const start = new Date(fromDate + "T00:00:00");
   const end = new Date(toDate + "T00:00:00");
-
-  return Math.round((end - start) / 86400000) + 1;
+  return Math.floor((end - start) / 86400000) + 1;
 }
 
 
-function getStatusClass(status) {
-  if (status === "Approved") return "status-approved";
-  if (status === "Rejected") return "status-rejected";
-  return "status-pending";
-}
-
-
-/* =====================================================
-   5. MANAGER GOOGLE LOGIN
-   ===================================================== */
+// ============================================
+// 4. MANAGER LOGIN
+// ============================================
 
 document.getElementById("googleLogin").addEventListener(
   "click",
   async function () {
-
     setLoading(this, true, "Sign in with Google");
 
     try {
       await signInWithPopup(auth, googleProvider);
-
     } catch (error) {
       console.error(error);
-      showLoginMessage("Unable to sign in with Google.");
-
+      showLoginMessage(error.message);
     } finally {
       setLoading(this, false, "Sign in with Google");
     }
@@ -214,14 +162,13 @@ document.getElementById("googleLogin").addEventListener(
 );
 
 
-/* =====================================================
-   6. EMPLOYEE LOGIN
-   ===================================================== */
+// ============================================
+// 5. EMPLOYEE LOGIN
+// ============================================
 
 document.getElementById("employeeLoginButton").addEventListener(
   "click",
   async function () {
-
     const employeeId =
       document.getElementById("employeeId").value.trim();
 
@@ -229,7 +176,7 @@ document.getElementById("employeeLoginButton").addEventListener(
       document.getElementById("employeePassword").value;
 
     if (!employeeId || !password) {
-      showLoginMessage("Please enter Employee ID and Password.");
+      showLoginMessage("Enter Employee ID and password.");
       return;
     }
 
@@ -242,14 +189,14 @@ document.getElementById("employeeLoginButton").addEventListener(
     showLoginMessage("");
 
     try {
-      const email = employeeLoginEmail(employeeId);
-
-      await signInWithEmailAndPassword(auth, email, password);
-
+      await signInWithEmailAndPassword(
+        auth,
+        employeeLoginEmail(employeeId),
+        password
+      );
     } catch (error) {
       console.error(error);
-      showLoginMessage("Invalid Employee ID or Password.");
-
+      showLoginMessage("Invalid Employee ID or password.");
     } finally {
       setLoading(this, false, "Employee Login");
     }
@@ -257,114 +204,85 @@ document.getElementById("employeeLoginButton").addEventListener(
 );
 
 
-/* =====================================================
-   7. AUTHENTICATION AND ROLE CHECK
-   ===================================================== */
+// ============================================
+// 6. AUTHENTICATION AND USER ROLE
+// ============================================
 
 onAuthStateChanged(auth, async user => {
-
   if (!user) {
     currentUser = null;
     currentProfile = null;
     currentRole = null;
-
-    document.querySelectorAll(".manager-only").forEach(element => {
-      element.classList.add("hidden");
-    });
-
     showLogin();
     return;
   }
 
   try {
-
     currentUser = user;
 
-    const userRef = doc(db, "authorizedUsers", user.uid);
+    const userRef = doc(db, "users", user.uid);
     const userSnapshot = await getDoc(userRef);
 
     if (!userSnapshot.exists()) {
       await signOut(auth);
-      showLoginMessage("Your account is not authorized. Contact your manager.");
+      showLoginMessage(
+        "User profile not found. Contact the manager."
+      );
       return;
     }
 
-    const userData = userSnapshot.data();
+    currentProfile = userSnapshot.data();
+    currentRole = currentProfile.role;
 
-    if (userData.active !== true) {
+    if (currentProfile.active !== true) {
       await signOut(auth);
-      showLoginMessage("Your account is inactive. Contact your manager.");
+      showLoginMessage("Your account is inactive.");
       return;
     }
 
-    currentRole = userData.role;
-
-    if (currentRole === "manager") {
-
-      currentProfile = {
-        name: user.displayName || user.email,
-        email: user.email
-      };
-
-      document.querySelectorAll(".manager-only").forEach(element => {
-        element.classList.remove("hidden");
-      });
-
-      updateUserDetails(currentProfile.name, "Manager");
-
-    } else if (currentRole === "employee") {
-
-      const employeeRef = doc(db, "employees", user.uid);
-      const employeeSnapshot = await getDoc(employeeRef);
-
-      if (!employeeSnapshot.exists()) {
-        await signOut(auth);
-        showLoginMessage("Employee profile not found.");
-        return;
-      }
-
-      currentProfile = employeeSnapshot.data();
-
-      if (currentProfile.status !== "Active") {
-        await signOut(auth);
-        showLoginMessage("Your employee account is inactive.");
-        return;
-      }
-
-      document.querySelectorAll(".manager-only").forEach(element => {
-        element.classList.add("hidden");
-      });
-
-      updateUserDetails(currentProfile.employeeName, "Employee");
-
-    } else {
-
+    if (
+      currentRole === "employee" &&
+      currentProfile.status !== "Active"
+    ) {
       await signOut(auth);
-      showLoginMessage("Invalid account role.");
+      showLoginMessage("Your employee account is inactive.");
       return;
     }
+
+    if (currentRole !== "manager" && currentRole !== "employee") {
+      await signOut(auth);
+      showLoginMessage("Invalid user role.");
+      return;
+    }
+
+    document.querySelectorAll(".manager-only").forEach(element => {
+      element.classList.toggle("hidden", currentRole !== "manager");
+    });
+
+    updateUserDetails(
+      currentRole === "manager"
+        ? currentProfile.name
+        : currentProfile.employeeName,
+      currentRole === "manager" ? "Manager" : "Employee"
+    );
 
     showApplication();
     openPage("dashboard");
 
   } catch (error) {
-
     console.error("Authentication error:", error);
-
     showLoginMessage("Unable to load your account.");
     await signOut(auth);
   }
 });
 
 
-/* =====================================================
-   8. SIDEBAR NAVIGATION
-   ===================================================== */
+// ============================================
+// 7. SIDEBAR NAVIGATION
+// ============================================
 
 document.querySelectorAll(".nav-button").forEach(button => {
-
   button.addEventListener("click", () => {
-
     const page = button.dataset.page;
 
     if (
@@ -379,19 +297,17 @@ document.querySelectorAll(".nav-button").forEach(button => {
     });
 
     button.classList.add("active");
-
     openPage(page);
   });
 });
 
 
-/* =====================================================
-   9. PAGE NAVIGATION
-   ===================================================== */
+// ============================================
+// 8. PAGE NAVIGATION
+// ============================================
 
 function openPage(page) {
-
-  const pageTitles = {
+  const titles = {
     dashboard: "Dashboard",
     employees: "Employee Details",
     leave: "Leave Management",
@@ -400,46 +316,38 @@ function openPage(page) {
   };
 
   document.getElementById("pageTitle").textContent =
-    pageTitles[page] || "Dashboard";
+    titles[page] || "Dashboard";
 
   if (page === "dashboard") {
     renderDashboard();
-
   } else if (page === "employees" && currentRole === "manager") {
     renderEmployees();
-
   } else if (page === "leave") {
     renderLeaveManagement();
-
   } else if (page === "reports" && currentRole === "manager") {
     renderReports();
-
   } else if (page === "settings") {
     renderSettings();
-
   } else {
     renderDashboard();
   }
 }
 
 
-/* =====================================================
-   10. DASHBOARD
-   ===================================================== */
+// ============================================
+// 9. DASHBOARD
+// ============================================
 
 async function renderDashboard() {
-
   const content = document.getElementById("pageContent");
 
   if (currentRole === "manager") {
-
     content.innerHTML = `
       <h2 class="section-title">
         Welcome, ${escapeHTML(currentProfile.name)}
       </h2>
 
       <div class="dashboard-grid">
-
         <div class="stat-card">
           <p>Total Employees</p>
           <h2 id="totalEmployees">-</h2>
@@ -451,7 +359,7 @@ async function renderDashboard() {
         </div>
 
         <div class="stat-card">
-          <p>Pending Leave Applications</p>
+          <p>Pending Leave Requests</p>
           <h2 id="pendingLeaves">-</h2>
         </div>
 
@@ -459,49 +367,41 @@ async function renderDashboard() {
           <p>Approved Leaves</p>
           <h2 id="approvedLeaves">-</h2>
         </div>
-
       </div>
 
       <div class="panel">
-        <div class="panel-header">
-          <h2>Management Overview</h2>
-        </div>
-
-        <p>
-          Manage employee accounts and review leave applications
-          submitted by your employees.
-        </p>
+        <h2>Management Overview</h2>
+        <p>Manage employee records and review leave applications.</p>
       </div>
     `;
 
     try {
-
-      const employeeSnapshot =
-        await getDocs(collection(db, "employees"));
+      const usersSnapshot = await getDocs(
+        query(collection(db, "users"), where("role", "==", "employee"))
+      );
 
       let activeCount = 0;
 
-      employeeSnapshot.forEach(employee => {
-        if (employee.data().status === "Active") {
-          activeCount++;
-        }
+      usersSnapshot.forEach(item => {
+        if (item.data().status === "Active") activeCount++;
       });
 
       document.getElementById("totalEmployees").textContent =
-        employeeSnapshot.size;
+        usersSnapshot.size;
 
       document.getElementById("activeEmployees").textContent =
         activeCount;
 
-      const leaveSnapshot =
-        await getDocs(collection(db, "leaveApplications"));
+      const leaveSnapshot = await getDocs(
+        collection(db, "leaveApplications")
+      );
 
       let pending = 0;
       let approved = 0;
 
-      leaveSnapshot.forEach(leave => {
-        if (leave.data().status === "Pending") pending++;
-        if (leave.data().status === "Approved") approved++;
+      leaveSnapshot.forEach(item => {
+        if (item.data().status === "Pending") pending++;
+        if (item.data().status === "Approved") approved++;
       });
 
       document.getElementById("pendingLeaves").textContent = pending;
@@ -512,14 +412,12 @@ async function renderDashboard() {
     }
 
   } else {
-
     content.innerHTML = `
       <h2 class="section-title">
         Welcome, ${escapeHTML(currentProfile.employeeName)}
       </h2>
 
       <div class="dashboard-grid">
-
         <div class="stat-card">
           <p>Employee ID</p>
           <h2>${escapeHTML(currentProfile.employeeId)}</h2>
@@ -539,14 +437,12 @@ async function renderDashboard() {
           <p>Account Status</p>
           <h2>${escapeHTML(currentProfile.status)}</h2>
         </div>
-
       </div>
 
       <div class="panel">
         <h2 class="section-title">My Employee Profile</h2>
 
         <div class="profile-grid">
-
           <div class="profile-item">
             <span>Employee Name</span>
             <strong>${escapeHTML(currentProfile.employeeName)}</strong>
@@ -555,6 +451,11 @@ async function renderDashboard() {
           <div class="profile-item">
             <span>Employee ID</span>
             <strong>${escapeHTML(currentProfile.employeeId)}</strong>
+          </div>
+
+          <div class="profile-item">
+            <span>Personal Email</span>
+            <strong>${escapeHTML(currentProfile.personalEmail || "-")}</strong>
           </div>
 
           <div class="profile-item">
@@ -569,87 +470,69 @@ async function renderDashboard() {
 
           <div class="profile-item">
             <span>Joining Date</span>
-            <strong>${formatDate(currentProfile.joiningDate)}</strong>
+            <strong>${escapeHTML(currentProfile.joiningDate || "-")}</strong>
           </div>
-
         </div>
-      </div>
 
-      <div class="panel">
-        <h2>Leave Management</h2>
-        <p>Apply for leave and track your application status.</p>
-        <div class="form-actions">
-          <button class="action-button" id="dashboardLeaveButton">
-            Apply for Leave
-          </button>
-        </div>
+        <button class="action-button" id="applyLeaveShortcut">
+          Apply for Leave
+        </button>
       </div>
     `;
 
-    document.getElementById("dashboardLeaveButton")
-      .addEventListener("click", () => {
-        document.querySelector('[data-page="leave"]').click();
-      });
+    document.getElementById("applyLeaveShortcut")
+      .addEventListener("click", () => openPage("leave"));
   }
 }
 
 
-/* =====================================================
-   11. EMPLOYEE MANAGEMENT PAGE
-   ===================================================== */
+// ============================================
+// 10. EMPLOYEE MANAGEMENT
+// ============================================
 
 async function renderEmployees() {
-
   if (currentRole !== "manager") return;
 
   const content = document.getElementById("pageContent");
 
   content.innerHTML = `
-
     <div class="panel">
-
-      <div class="panel-header">
-        <h2>Create New Employee Account</h2>
-      </div>
+      <h2 class="section-title">Create New Employee</h2>
 
       <form id="employeeForm">
-
         <div class="form-grid">
 
           <div class="form-group">
             <label>Employee ID *</label>
-            <input type="text" id="newEmployeeId"
-              placeholder="Example: EMP001" required>
+            <input id="newEmployeeId" required
+              placeholder="Example: EMP001">
           </div>
 
           <div class="form-group">
             <label>Employee Name *</label>
-            <input type="text" id="newEmployeeName"
-              placeholder="Enter employee name" required>
+            <input id="newEmployeeName" required>
           </div>
 
           <div class="form-group">
             <label>Initial Password *</label>
             <input type="password" id="newEmployeePassword"
-              minlength="6" placeholder="Minimum 6 characters" required>
+              minlength="6" required>
           </div>
 
           <div class="form-group">
-            <label>Company Email *</label>
-            <input type="email" id="newEmployeeEmail"
-              placeholder="employee@company.com" required>
+            <label>Personal Email *</label>
+            <input type="email" id="newEmployeePersonalEmail"
+              placeholder="personal@gmail.com" required>
           </div>
 
           <div class="form-group">
             <label>Department</label>
-            <input type="text" id="newEmployeeDepartment"
-              placeholder="Enter department">
+            <input id="newEmployeeDepartment">
           </div>
 
           <div class="form-group">
             <label>Designation</label>
-            <input type="text" id="newEmployeeDesignation"
-              placeholder="Enter designation">
+            <input id="newEmployeeDesignation">
           </div>
 
           <div class="form-group">
@@ -667,25 +550,12 @@ async function renderEmployees() {
             Create Employee Account
           </button>
         </div>
-
       </form>
     </div>
 
     <div class="panel">
-
-      <div class="panel-header">
-        <h2>Employee Records</h2>
-      </div>
-
-      <div id="employeeTableArea">
-        Loading employees...
-      </div>
-
-      <div class="info-message">
-        Permanent deletion is unavailable until secure backend
-        deletion is configured. Discontinue preserves employee records.
-      </div>
-
+      <h2 class="section-title">Employee Records</h2>
+      <div id="employeeTableArea">Loading employees...</div>
     </div>
   `;
 
@@ -696,17 +566,17 @@ async function renderEmployees() {
 }
 
 
-/* =====================================================
-   12. CREATE EMPLOYEE ACCOUNT
-   ===================================================== */
+// ============================================
+// 11. CREATE EMPLOYEE
+// ============================================
 
 async function createEmployee(event) {
-
   event.preventDefault();
 
   if (currentRole !== "manager" || !currentUser) return;
 
   const button = document.getElementById("createEmployeeButton");
+  const message = document.getElementById("employeeFormMessage");
 
   const employeeId =
     document.getElementById("newEmployeeId").value.trim();
@@ -717,8 +587,8 @@ async function createEmployee(event) {
   const password =
     document.getElementById("newEmployeePassword").value;
 
-  const companyEmail =
-    document.getElementById("newEmployeeEmail").value.trim();
+  const personalEmail =
+    document.getElementById("newEmployeePersonalEmail").value.trim();
 
   const department =
     document.getElementById("newEmployeeDepartment").value.trim();
@@ -730,177 +600,130 @@ async function createEmployee(event) {
     document.getElementById("newEmployeeJoiningDate").value;
 
   if (!/^[a-zA-Z0-9_-]+$/.test(employeeId)) {
-    showMessage(
-      "employeeFormMessage",
-      "Employee ID can contain only letters, numbers, hyphens and underscores."
-    );
+    message.innerHTML =
+      '<div class="error-message">Invalid Employee ID format.</div>';
     return;
   }
 
   if (password.length < 6) {
-    showMessage(
-      "employeeFormMessage",
-      "Password must contain at least 6 characters."
-    );
+    message.innerHTML =
+      '<div class="error-message">Password must have at least 6 characters.</div>';
     return;
   }
 
   const normalizedId = normalizeEmployeeId(employeeId);
-  const internalEmail = employeeLoginEmail(employeeId);
 
   setLoading(button, true, "Create Employee Account");
 
   try {
+    const existing = await getDocs(
+      query(
+        collection(db, "users"),
+        where("employeeId", "==", normalizedId)
+      )
+    );
+
+    if (!existing.empty) {
+      throw new Error("This Employee ID already exists.");
+    }
 
     const credential = await createUserWithEmailAndPassword(
       employeeAuth,
-      internalEmail,
+      employeeLoginEmail(employeeId),
       password
     );
 
     const employeeUid = credential.user.uid;
 
-    try {
+    const employeeData = {
+      uid: employeeUid,
+      employeeId: normalizedId,
+      employeeName,
+      personalEmail,
+      department,
+      designation,
+      joiningDate,
+      role: "employee",
+      active: true,
+      status: "Active",
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    };
 
-      const batch = writeBatch(db);
-
-      const employeeRef = doc(db, "employees", employeeUid);
-      const authorizationRef = doc(db, "authorizedUsers", employeeUid);
-
-      batch.set(employeeRef, {
-        uid: employeeUid,
-        employeeId: normalizedId,
-        employeeName,
-        email: internalEmail,
-        companyEmail,
-        department,
-        designation,
-        joiningDate,
-        managerEmail: currentUser.email,
-        status: "Active",
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
-
-      batch.set(authorizationRef, {
-        email: internalEmail,
-        role: "employee",
-        active: true,
-        createdAt: serverTimestamp()
-      });
-
-      await batch.commit();
-
-    } catch (firestoreError) {
-
-      console.error(firestoreError);
-
-      showMessage(
-        "employeeFormMessage",
-        "Login account created, but employee records could not be saved. Check Firestore Rules before retrying."
-      );
-
-      return;
-    }
-
-    showMessage(
-      "employeeFormMessage",
-      `Employee ${employeeId} created successfully.`,
-      "success"
+    await setDoc(
+      doc(db, "users", employeeUid),
+      employeeData
     );
 
-    document.getElementById("employeeForm").reset();
+    message.innerHTML = `
+      <div class="success-message">
+        Employee account created successfully!<br>
+        Employee ID: <strong>${escapeHTML(employeeId)}</strong>
+      </div>
+    `;
 
+    document.getElementById("employeeForm").reset();
     await loadEmployeeTable();
 
   } catch (error) {
+    console.error("Employee creation error:", error);
 
-    console.error(error);
-
-    let errorText = "Unable to create employee account.";
-
-    if (error.code === "auth/email-already-in-use") {
-      errorText = "This Employee ID already exists.";
-    } else if (error.code === "auth/weak-password") {
-      errorText = "Please use a stronger password.";
-    } else if (error.code === "auth/operation-not-allowed") {
-      errorText = "Email/Password authentication is not enabled.";
-    }
-
-    showMessage("employeeFormMessage", errorText);
+    message.innerHTML = `
+      <div class="error-message">
+        ${escapeHTML(error.message || "Unable to create employee.")}
+      </div>
+    `;
 
   } finally {
-
     await signOut(employeeAuth).catch(console.error);
-
     setLoading(button, false, "Create Employee Account");
   }
 }
 
 
-/* =====================================================
-   13. LOAD EMPLOYEE TABLE
-   ===================================================== */
+// ============================================
+// 12. LOAD EMPLOYEE TABLE
+// ============================================
 
 async function loadEmployeeTable() {
-
   const area = document.getElementById("employeeTableArea");
 
   if (!area || currentRole !== "manager") return;
 
-  area.innerHTML = "Loading employees...";
-
   try {
-
-    const snapshot = await getDocs(collection(db, "employees"));
+    const snapshot = await getDocs(
+      query(collection(db, "users"), where("role", "==", "employee"))
+    );
 
     if (snapshot.empty) {
-      area.innerHTML = "<p>No employee records found.</p>";
+      area.innerHTML = '<div class="empty-state">No employees found.</div>';
       return;
     }
 
     let rows = "";
 
-    snapshot.forEach(employeeDoc => {
-
-      const employee = employeeDoc.data();
-      const isActive = employee.status === "Active";
+    snapshot.forEach(item => {
+      const employee = item.data();
+      const active = employee.status === "Active";
 
       rows += `
         <tr>
-
           <td>${escapeHTML(employee.employeeId)}</td>
           <td>${escapeHTML(employee.employeeName)}</td>
+          <td>${escapeHTML(employee.personalEmail || "-")}</td>
           <td>${escapeHTML(employee.department || "-")}</td>
           <td>${escapeHTML(employee.designation || "-")}</td>
-
-          <td>
-            <span class="status ${
-              isActive ? "status-active" : "status-inactive"
-            }">
-              ${escapeHTML(employee.status || "Unknown")}
-            </span>
-          </td>
-
+          <td>${escapeHTML(employee.status)}</td>
           <td>
             ${
-              isActive
-                ? `<button type="button"
-                    class="action-button discontinue-button"
-                    data-employee-uid="${escapeHTML(employeeDoc.id)}">
+              active
+                ? `<button class="action-button discontinue-button"
+                    data-uid="${escapeHTML(item.id)}">
                     Discontinue
                   </button>`
                 : `<span class="inactive-label">Discontinued</span>`
             }
-
-            <button type="button"
-              class="delete-button"
-              disabled
-              title="Secure backend setup required">
-              Permanent Delete
-            </button>
           </td>
-
         </tr>
       `;
     });
@@ -908,237 +731,139 @@ async function loadEmployeeTable() {
     area.innerHTML = `
       <div class="table-container">
         <table>
-
           <thead>
             <tr>
               <th>Employee ID</th>
               <th>Name</th>
+              <th>Personal Email</th>
               <th>Department</th>
               <th>Designation</th>
               <th>Status</th>
-              <th>Actions</th>
+              <th>Action</th>
             </tr>
           </thead>
-
           <tbody>${rows}</tbody>
-
         </table>
       </div>
     `;
 
     area.querySelectorAll(".discontinue-button").forEach(button => {
-
-      button.addEventListener("click", async () => {
-
-        await discontinueEmployee(
-          button.dataset.employeeUid,
-          button
-        );
-
-      });
+      button.addEventListener("click", () =>
+        discontinueEmployee(button.dataset.uid, button)
+      );
     });
 
   } catch (error) {
-
     console.error(error);
-
-    area.innerHTML = `
-      <div class="error-message">
-        Unable to load employee records. Check Firestore Rules.
-      </div>
-    `;
+    area.innerHTML =
+      '<div class="error-message">Unable to load employee records.</div>';
   }
 }
 
 
-/* =====================================================
-   14. DISCONTINUE EMPLOYEE
-   ===================================================== */
+// ============================================
+// 13. DISCONTINUE EMPLOYEE
+// ============================================
 
-async function discontinueEmployee(employeeUid, button) {
+async function discontinueEmployee(uid, button) {
+  if (currentRole !== "manager") return;
 
-  if (currentRole !== "manager" || !currentUser) return;
-
-  const confirmed = confirm(
-    "Do you want to discontinue this employee?\n\n" +
-    "Their login access will be disabled and their records preserved."
-  );
-
-  if (!confirmed) return;
-
-  const originalText = button.textContent;
+  if (!confirm(
+    "Discontinue this employee? Their login will be disabled, " +
+    "but their records will be preserved."
+  )) return;
 
   button.disabled = true;
-  button.textContent = "Processing...";
 
   try {
-
-    const batch = writeBatch(db);
-
-    batch.update(doc(db, "employees", employeeUid), {
-      status: "Inactive",
-      updatedAt: serverTimestamp(),
-      discontinuedAt: serverTimestamp(),
-      discontinuedBy: currentUser.email || currentUser.uid
-    });
-
-    batch.update(doc(db, "authorizedUsers", employeeUid), {
+    await updateDoc(doc(db, "users", uid), {
       active: false,
+      status: "Inactive",
+      discontinuedAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     });
 
-    await batch.commit();
-
-    alert("Employee discontinued. Records have been preserved.");
-
+    alert("Employee discontinued successfully.");
     await loadEmployeeTable();
 
   } catch (error) {
-
     console.error(error);
-
+    alert("Unable to discontinue employee. Check Firestore Rules.");
     button.disabled = false;
-    button.textContent = originalText;
-
-    alert(
-      "Unable to discontinue employee. Check Firestore Rules."
-    );
   }
 }
 
 
-/* =====================================================
-   15. LEAVE MANAGEMENT PAGE
-   ===================================================== */
+// ============================================
+// 14. LEAVE MANAGEMENT
+// ============================================
 
 async function renderLeaveManagement() {
-
   const content = document.getElementById("pageContent");
 
   if (currentRole === "employee") {
-
     content.innerHTML = `
-
       <div class="panel">
+        <h2 class="section-title">Apply for Leave</h2>
 
-        <div class="panel-header">
-          <h2>Apply for Leave</h2>
-        </div>
-
-        <form id="leaveApplicationForm">
-
+        <form id="leaveForm">
           <div class="form-grid">
 
             <div class="form-group">
               <label>Leave Type *</label>
-
               <select id="leaveType" required>
-                <option value="">Select Leave Type</option>
-                <option value="Casual Leave">Casual Leave</option>
-                <option value="Sick Leave">Sick Leave</option>
-                <option value="Earned Leave">Earned Leave</option>
-                <option value="Unpaid Leave">Unpaid Leave</option>
-                <option value="Other">Other</option>
+                <option value="">Select leave type</option>
+                <option>Casual Leave</option>
+                <option>Sick Leave</option>
+                <option>Earned Leave</option>
+                <option>Unpaid Leave</option>
+                <option>Other</option>
               </select>
             </div>
 
             <div class="form-group">
               <label>From Date *</label>
-              <input type="date" id="leaveFromDate" required>
+              <input type="date" id="fromDate" required>
             </div>
 
             <div class="form-group">
               <label>To Date *</label>
-              <input type="date" id="leaveToDate" required>
+              <input type="date" id="toDate" required>
             </div>
 
           </div>
 
           <div class="form-group">
-            <label>Reason for Leave *</label>
-            <textarea id="leaveReason"
-              placeholder="Explain the reason for your leave..."
-              required></textarea>
+            <label>Reason *</label>
+            <textarea id="leaveReason" rows="4"
+              maxlength="2000" required></textarea>
           </div>
 
           <div id="leaveFormMessage"></div>
 
-          <div class="form-actions">
-
-            <button type="submit" class="action-button"
-              id="submitLeaveButton">
-              Submit Leave Application
-            </button>
-
-          </div>
-
+          <button type="submit" class="action-button"
+            id="submitLeaveButton">
+            Submit Leave Application
+          </button>
         </form>
-
       </div>
 
       <div class="panel">
-
-        <div class="panel-header">
-          <h2>My Leave Applications</h2>
-        </div>
-
-        <div id="myLeaveApplications">
-          Loading leave applications...
-        </div>
-
+        <h2 class="section-title">My Leave Applications</h2>
+        <div id="myLeaveHistory">Loading leave history...</div>
       </div>
     `;
 
-    const today = new Date().toISOString().split("T")[0];
-
-    document.getElementById("leaveFromDate").min = today;
-    document.getElementById("leaveToDate").min = today;
-
-    document.getElementById("leaveFromDate").addEventListener(
-      "change",
-      function () {
-        document.getElementById("leaveToDate").min = this.value;
-      }
-    );
-
-    document.getElementById("leaveApplicationForm")
+    document.getElementById("leaveForm")
       .addEventListener("submit", submitLeaveApplication);
 
-    await loadMyLeaveApplications();
+    await loadEmployeeLeaveHistory();
 
-  } else if (currentRole === "manager") {
-
+  } else {
     content.innerHTML = `
-
-      <div class="leave-summary-grid">
-
-        <div class="leave-summary-card">
-          <p>Total Applications</p>
-          <h3 id="managerTotalLeaves">-</h3>
-        </div>
-
-        <div class="leave-summary-card">
-          <p>Pending Applications</p>
-          <h3 id="managerPendingLeaves">-</h3>
-        </div>
-
-        <div class="leave-summary-card">
-          <p>Approved Applications</p>
-          <h3 id="managerApprovedLeaves">-</h3>
-        </div>
-
-      </div>
-
       <div class="panel">
-
-        <div class="panel-header">
-          <h2>Employee Leave Applications</h2>
-        </div>
-
-        <div id="managerLeaveApplications">
-          Loading leave applications...
-        </div>
-
+        <h2 class="section-title">Employee Leave Applications</h2>
+        <div id="managerLeaveList">Loading leave applications...</div>
       </div>
     `;
 
@@ -1147,40 +872,24 @@ async function renderLeaveManagement() {
 }
 
 
-/* =====================================================
-   16. EMPLOYEE SUBMITS LEAVE APPLICATION
-   ===================================================== */
+// ============================================
+// 15. EMPLOYEE SUBMITS LEAVE
+// ============================================
 
 async function submitLeaveApplication(event) {
-
   event.preventDefault();
 
-  if (currentRole !== "employee" || !currentUser) return;
-
   const button = document.getElementById("submitLeaveButton");
+  const message = document.getElementById("leaveFormMessage");
 
   const leaveType = document.getElementById("leaveType").value;
-  const fromDate = document.getElementById("leaveFromDate").value;
-  const toDate = document.getElementById("leaveToDate").value;
+  const fromDate = document.getElementById("fromDate").value;
+  const toDate = document.getElementById("toDate").value;
   const reason = document.getElementById("leaveReason").value.trim();
 
-  if (!leaveType || !fromDate || !toDate || !reason) {
-
-    showMessage(
-      "leaveFormMessage",
-      "Please complete all required fields."
-    );
-
-    return;
-  }
-
-  if (toDate < fromDate) {
-
-    showMessage(
-      "leaveFormMessage",
-      "To Date cannot be earlier than From Date."
-    );
-
+  if (!fromDate || !toDate || toDate < fromDate) {
+    message.innerHTML =
+      '<div class="error-message">Please select valid leave dates.</div>';
     return;
   }
 
@@ -1189,68 +898,47 @@ async function submitLeaveApplication(event) {
   setLoading(button, true, "Submit Leave Application");
 
   try {
-
     await addDoc(collection(db, "leaveApplications"), {
-
       employeeUid: currentUser.uid,
       employeeId: currentProfile.employeeId,
       employeeName: currentProfile.employeeName,
-      employeeEmail: currentProfile.companyEmail || "",
-
+      personalEmail: currentProfile.personalEmail || "",
       leaveType,
       fromDate,
       toDate,
       totalDays,
       reason,
-
       status: "Pending",
       managerMessage: "",
-
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
-
     });
 
-    showMessage(
-      "leaveFormMessage",
-      "Leave application submitted successfully. It is now pending manager review.",
-      "success"
-    );
+    message.innerHTML =
+      '<div class="success-message">Leave application submitted successfully.</div>';
 
-    document.getElementById("leaveApplicationForm").reset();
-
-    await loadMyLeaveApplications();
+    document.getElementById("leaveForm").reset();
+    await loadEmployeeLeaveHistory();
 
   } catch (error) {
-
     console.error("Leave submission error:", error);
-
-    showMessage(
-      "leaveFormMessage",
-      "Unable to submit leave application. Check Firestore Rules."
-    );
-
+    message.innerHTML =
+      '<div class="error-message">Unable to submit leave application. Check Firestore Rules.</div>';
   } finally {
-
     setLoading(button, false, "Submit Leave Application");
   }
 }
 
 
-/* =====================================================
-   17. LOAD EMPLOYEE LEAVE HISTORY
-   ===================================================== */
+// ============================================
+// 16. EMPLOYEE LEAVE HISTORY
+// ============================================
 
-async function loadMyLeaveApplications() {
-
-  const area = document.getElementById("myLeaveApplications");
-
-  if (!area || currentRole !== "employee") return;
-
-  area.innerHTML = "Loading...";
+async function loadEmployeeLeaveHistory() {
+  const area = document.getElementById("myLeaveHistory");
+  if (!area) return;
 
   try {
-
     const leaveQuery = query(
       collection(db, "leaveApplications"),
       where("employeeUid", "==", currentUser.uid),
@@ -1260,95 +948,64 @@ async function loadMyLeaveApplications() {
     const snapshot = await getDocs(leaveQuery);
 
     if (snapshot.empty) {
-
-      area.innerHTML = `
-        <p>No leave applications submitted yet.</p>
-      `;
-
+      area.innerHTML =
+        '<div class="empty-state">You have not applied for leave yet.</div>';
       return;
     }
 
-    let rows = "";
+    let html = `
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Leave Type</th>
+              <th>From</th>
+              <th>To</th>
+              <th>Days</th>
+              <th>Reason</th>
+              <th>Status</th>
+              <th>Manager Reply</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
 
-    snapshot.forEach(leaveDoc => {
+    snapshot.forEach(item => {
+      const leave = item.data();
 
-      const leave = leaveDoc.data();
-
-      rows += `
+      html += `
         <tr>
-
           <td>${escapeHTML(leave.leaveType)}</td>
-
           <td>${formatDate(leave.fromDate)}</td>
-
           <td>${formatDate(leave.toDate)}</td>
-
           <td>${escapeHTML(leave.totalDays)}</td>
-
-          <td>
-            <span class="status ${getStatusClass(leave.status)}">
-              ${escapeHTML(leave.status)}
-            </span>
-          </td>
-
-          <td>${escapeHTML(leave.managerMessage || "-")}</td>
-
+          <td>${escapeHTML(leave.reason)}</td>
+          <td>${escapeHTML(leave.status)}</td>
+          <td>${escapeHTML(leave.managerMessage || "No reply yet")}</td>
         </tr>
       `;
     });
 
-    area.innerHTML = `
-      <div class="table-container">
-
-        <table>
-
-          <thead>
-            <tr>
-              <th>Leave Type</th>
-              <th>From Date</th>
-              <th>To Date</th>
-              <th>Days</th>
-              <th>Status</th>
-              <th>Manager Message</th>
-            </tr>
-          </thead>
-
-          <tbody>${rows}</tbody>
-
-        </table>
-
-      </div>
-    `;
+    html += "</tbody></table></div>";
+    area.innerHTML = html;
 
   } catch (error) {
-
-    console.error(error);
-
-    area.innerHTML = `
-      <div class="error-message">
-        Unable to load leave history. Check Firestore Rules.
-      </div>
-    `;
+    console.error("Employee leave history error:", error);
+    area.innerHTML =
+      '<div class="error-message">Unable to load leave history. Check Firestore Rules and indexes.</div>';
   }
 }
 
 
-/* =====================================================
-   18. MANAGER LOADS ALL LEAVE APPLICATIONS
-   ===================================================== */
+// ============================================
+// 17. MANAGER LEAVE APPLICATIONS
+// ============================================
 
 async function loadManagerLeaveApplications() {
-
-  if (currentRole !== "manager") return;
-
-  const area = document.getElementById("managerLeaveApplications");
-
+  const area = document.getElementById("managerLeaveList");
   if (!area) return;
 
-  area.innerHTML = "Loading applications...";
-
   try {
-
     const leaveQuery = query(
       collection(db, "leaveApplications"),
       orderBy("createdAt", "desc")
@@ -1356,379 +1013,203 @@ async function loadManagerLeaveApplications() {
 
     const snapshot = await getDocs(leaveQuery);
 
-    let pending = 0;
-    let approved = 0;
-    let rows = "";
+    if (snapshot.empty) {
+      area.innerHTML =
+        '<div class="empty-state">No leave applications received.</div>';
+      return;
+    }
 
-    snapshot.forEach(leaveDoc => {
+    let html = `
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th>Employee ID</th>
+              <th>Leave Type</th>
+              <th>Dates</th>
+              <th>Days</th>
+              <th>Reason</th>
+              <th>Decision</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
 
-      const leave = leaveDoc.data();
+    snapshot.forEach(item => {
+      const leave = item.data();
 
-      if (leave.status === "Pending") pending++;
-      if (leave.status === "Approved") approved++;
-
-      const isPending = leave.status === "Pending";
-
-      rows += `
+      html += `
         <tr>
-
-          <td>${escapeHTML(leave.employeeId)}</td>
-
           <td>${escapeHTML(leave.employeeName)}</td>
-
+          <td>${escapeHTML(leave.employeeId)}</td>
           <td>${escapeHTML(leave.leaveType)}</td>
-
-          <td>${formatDate(leave.fromDate)}</td>
-
-          <td>${formatDate(leave.toDate)}</td>
-
+          <td>${formatDate(leave.fromDate)} - ${formatDate(leave.toDate)}</td>
           <td>${escapeHTML(leave.totalDays)}</td>
-
           <td>${escapeHTML(leave.reason)}</td>
-
-          <td>
-            <span class="status ${getStatusClass(leave.status)}">
-              ${escapeHTML(leave.status)}
-            </span>
-          </td>
-
           <td>
             ${
-              isPending
-                ? `
-                  <button class="approve-button"
-                    data-leave-id="${escapeHTML(leaveDoc.id)}"
-                    data-decision="Approved">
-                    Approve
-                  </button>
-
-                  <button class="reject-button"
-                    data-leave-id="${escapeHTML(leaveDoc.id)}"
-                    data-decision="Rejected">
-                    Reject
-                  </button>
-                `
-                : escapeHTML(leave.managerMessage || "-")
+              leave.status === "Pending"
+                ? `<button class="approve-button"
+                    data-id="${escapeHTML(item.id)}"
+                    data-status="Approved">Approve</button>
+                   <button class="reject-button"
+                    data-id="${escapeHTML(item.id)}"
+                    data-status="Rejected">Reject</button>`
+                : `<strong>${escapeHTML(leave.status)}</strong>
+                   <p>${escapeHTML(leave.managerMessage || "")}</p>`
             }
           </td>
-
         </tr>
       `;
     });
 
-    document.getElementById("managerTotalLeaves").textContent =
-      snapshot.size;
+    html += "</tbody></table></div>";
+    area.innerHTML = html;
 
-    document.getElementById("managerPendingLeaves").textContent =
-      pending;
-
-    document.getElementById("managerApprovedLeaves").textContent =
-      approved;
-
-    if (snapshot.empty) {
-
-      area.innerHTML = "<p>No leave applications received.</p>";
-      return;
-    }
-
-    area.innerHTML = `
-      <div class="table-container">
-
-        <table>
-
-          <thead>
-            <tr>
-              <th>Employee ID</th>
-              <th>Employee Name</th>
-              <th>Leave Type</th>
-              <th>From</th>
-              <th>To</th>
-              <th>Days</th>
-              <th>Reason</th>
-              <th>Status</th>
-              <th>Manager Action</th>
-            </tr>
-          </thead>
-
-          <tbody>${rows}</tbody>
-
-        </table>
-
-      </div>
-
-      <div class="info-message">
-        Select Approve or Reject to record your decision and add a message.
-      </div>
-    `;
-
-    area.querySelectorAll("[data-decision]").forEach(button => {
-
-      button.addEventListener("click", async () => {
-
-        await reviewLeaveApplication(
-          button.dataset.leaveId,
-          button.dataset.decision,
-          button
+    area.querySelectorAll(".approve-button, .reject-button")
+      .forEach(button => {
+        button.addEventListener("click", () =>
+          reviewLeaveApplication(
+            button.dataset.id,
+            button.dataset.status
+          )
         );
-
       });
-    });
 
   } catch (error) {
-
-    console.error(error);
-
-    area.innerHTML = `
-      <div class="error-message">
-        Unable to load applications. Check Firestore Rules.
-      </div>
-    `;
+    console.error("Manager leave loading error:", error);
+    area.innerHTML =
+      '<div class="error-message">Unable to load leave applications. Check Firestore Rules.</div>';
   }
 }
 
 
-/* =====================================================
-   19. MANAGER APPROVES OR REJECTS LEAVE
-   ===================================================== */
+// ============================================
+// 18. MANAGER APPROVES OR REJECTS LEAVE
+// ============================================
 
-async function reviewLeaveApplication(leaveId, decision, button) {
-
-  if (currentRole !== "manager" || !currentUser) return;
-
-  if (!["Approved", "Rejected"].includes(decision)) return;
+async function reviewLeaveApplication(leaveId, decision) {
+  if (currentRole !== "manager") return;
 
   const managerMessage = prompt(
-    `Enter your message for the employee (${decision}):`
+    `Enter your message for this ${decision.toLowerCase()} decision:`
   );
 
   if (managerMessage === null) return;
 
-  const confirmed = confirm(
-    `Confirm ${decision.toLowerCase()} decision for this leave application?`
-  );
-
-  if (!confirmed) return;
-
-  button.disabled = true;
+  if (managerMessage.trim().length > 2000) {
+    alert("Message cannot exceed 2000 characters.");
+    return;
+  }
 
   try {
-
-    const leaveRef = doc(db, "leaveApplications", leaveId);
-
-    await updateDoc(leaveRef, {
-
+    await updateDoc(doc(db, "leaveApplications", leaveId), {
       status: decision,
       managerMessage: managerMessage.trim(),
-
       reviewedBy: currentUser.email || currentUser.uid,
       reviewedAt: serverTimestamp(),
       updatedAt: serverTimestamp()
-
     });
 
-    alert(
-      `Leave application ${decision.toLowerCase()} successfully.`
-    );
-
+    alert(`Leave application ${decision.toLowerCase()}.`);
     await loadManagerLeaveApplications();
 
   } catch (error) {
-
     console.error("Leave review error:", error);
-
-    button.disabled = false;
-
-    alert(
-      "Unable to update leave application. Check Firestore Rules."
-    );
+    alert("Unable to update leave application. Check Firestore Rules.");
   }
 }
 
 
-/* =====================================================
-   20. MANAGER REPORTS
-   ===================================================== */
+// ============================================
+// 19. REPORTS
+// ============================================
 
 async function renderReports() {
-
-  if (currentRole !== "manager") return;
-
   const content = document.getElementById("pageContent");
 
   content.innerHTML = `
-
-    <h2 class="section-title">Leave Reports</h2>
-
     <div class="panel">
-
-      <div class="panel-header">
-        <h2>Leave Application Report</h2>
-      </div>
-
-      <div id="leaveReportArea">
-        Generating report...
-      </div>
-
+      <h2 class="section-title">Leave Reports</h2>
+      <div id="leaveReportArea">Loading reports...</div>
     </div>
   `;
 
   try {
-
     const snapshot = await getDocs(
-      query(
-        collection(db, "leaveApplications"),
-        orderBy("createdAt", "desc")
-      )
+      collection(db, "leaveApplications")
     );
 
     let pending = 0;
     let approved = 0;
     let rejected = 0;
 
-    let rows = "";
-
-    snapshot.forEach(leaveDoc => {
-
-      const leave = leaveDoc.data();
-
-      if (leave.status === "Pending") pending++;
-      if (leave.status === "Approved") approved++;
-      if (leave.status === "Rejected") rejected++;
-
-      rows += `
-        <tr>
-          <td>${escapeHTML(leave.employeeId)}</td>
-          <td>${escapeHTML(leave.employeeName)}</td>
-          <td>${escapeHTML(leave.leaveType)}</td>
-          <td>${formatDate(leave.fromDate)}</td>
-          <td>${formatDate(leave.toDate)}</td>
-          <td>${escapeHTML(leave.totalDays)}</td>
-          <td>${escapeHTML(leave.status)}</td>
-        </tr>
-      `;
+    snapshot.forEach(item => {
+      const status = item.data().status;
+      if (status === "Pending") pending++;
+      if (status === "Approved") approved++;
+      if (status === "Rejected") rejected++;
     });
 
     document.getElementById("leaveReportArea").innerHTML = `
-
-      <div class="leave-summary-grid">
-
-        <div class="leave-summary-card">
-          <p>Total Applications</p>
-          <h3>${snapshot.size}</h3>
-        </div>
-
-        <div class="leave-summary-card">
-          <p>Pending</p>
-          <h3>${pending}</h3>
-        </div>
-
-        <div class="leave-summary-card">
-          <p>Approved</p>
-          <h3>${approved}</h3>
-        </div>
-
-        <div class="leave-summary-card">
-          <p>Rejected</p>
-          <h3>${rejected}</h3>
-        </div>
-
-      </div>
-
-      <div class="table-container">
-
-        <table>
-
-          <thead>
-            <tr>
-              <th>Employee ID</th>
-              <th>Name</th>
-              <th>Leave Type</th>
-              <th>From</th>
-              <th>To</th>
-              <th>Days</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            ${rows || "<tr><td colspan='7'>No records found.</td></tr>"}
-          </tbody>
-
-        </table>
-
+      <div class="dashboard-grid">
+        <div class="stat-card"><p>Pending</p><h2>${pending}</h2></div>
+        <div class="stat-card"><p>Approved</p><h2>${approved}</h2></div>
+        <div class="stat-card"><p>Rejected</p><h2>${rejected}</h2></div>
+        <div class="stat-card"><p>Total Applications</p><h2>${snapshot.size}</h2></div>
       </div>
     `;
 
   } catch (error) {
-
     console.error(error);
-
-    document.getElementById("leaveReportArea").innerHTML = `
-      <div class="error-message">
-        Unable to generate report. Check Firestore Rules.
-      </div>
-    `;
+    document.getElementById("leaveReportArea").textContent =
+      "Unable to load reports.";
   }
 }
 
 
-/* =====================================================
-   21. SETTINGS PAGE
-   ===================================================== */
+// ============================================
+// 20. SETTINGS
+// ============================================
 
 function renderSettings() {
-
   const content = document.getElementById("pageContent");
 
   if (currentRole === "employee") {
-
     content.innerHTML = `
-
       <div class="panel">
-
         <h2 class="section-title">My Account</h2>
-
         <p>Employee ID: ${escapeHTML(currentProfile.employeeId)}</p>
         <p>Name: ${escapeHTML(currentProfile.employeeName)}</p>
-        <p>Department: ${escapeHTML(currentProfile.department || "-")}</p>
+        <p>Personal Email: ${escapeHTML(currentProfile.personalEmail || "-")}</p>
         <p>Role: Employee</p>
-
       </div>
     `;
-
   } else {
-
     content.innerHTML = `
-
       <div class="panel">
-
         <h2 class="section-title">Manager Settings</h2>
-
         <p>Manager Name: ${escapeHTML(currentProfile.name)}</p>
         <p>Manager Email: ${escapeHTML(currentProfile.email)}</p>
-
       </div>
     `;
   }
 }
 
 
-/* =====================================================
-   22. LOGOUT
-   ===================================================== */
+// ============================================
+// 21. LOGOUT
+// ============================================
 
 document.getElementById("logoutButton").addEventListener(
   "click",
   async () => {
-
     try {
       await signOut(auth);
-
     } catch (error) {
-
-      console.error("Logout failed:", error);
-
-      alert("Unable to log out. Please try again.");
+      console.error(error);
+      alert("Unable to log out.");
     }
   }
 );
