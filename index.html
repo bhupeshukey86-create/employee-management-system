@@ -4,37 +4,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#173b67">
-
   <title>Employee Management System</title>
-
   <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
   <!-- LOGIN SCREEN -->
-  <section id="loginScreen" class="login-screen">
+  <div id="loginScreen" class="login-screen">
 
-    <div class="login-card">
+    <div class="login-container">
 
-      <div class="brand-logo">EMS</div>
+      <div class="login-header">
+        <h1>Employee Management System</h1>
+        <p>Welcome! Please sign in to continue.</p>
+      </div>
 
-      <h1>Employee Management System</h1>
-      <p class="login-subtitle">
-        Welcome! Sign in to access your account.
-      </p>
-
-      <!-- EMPLOYEE LOGIN -->
       <div class="login-section">
-
         <h2>Employee Login</h2>
 
         <label for="employeeId">Employee ID</label>
         <input
           type="text"
           id="employeeId"
-          placeholder="Enter your Employee ID"
+          placeholder="Enter Employee ID"
           autocomplete="username"
         >
 
@@ -42,140 +35,126 @@
         <input
           type="password"
           id="employeePassword"
-          placeholder="Enter your password"
+          placeholder="Enter Password"
           autocomplete="current-password"
         >
 
         <button id="employeeLoginButton" class="primary-button">
-          Login as Employee
+          Employee Login
         </button>
-
       </div>
 
       <div class="login-divider">
         <span>OR</span>
       </div>
 
-      <!-- MANAGER LOGIN -->
-      <div class="login-section manager-login">
-
+      <div class="login-section manager-login-section">
         <h2>Manager Login</h2>
 
         <button id="googleLogin" class="google-button">
-          <span>G</span> Sign in with Google
+          Sign in with Google
         </button>
-
       </div>
 
-      <p id="loginMessage" class="message"></p>
-
-      <p class="login-footer">
-        Employee accounts are created by the manager.
-      </p>
+      <div id="loginMessage" class="message"></div>
 
     </div>
-
-  </section>
+  </div>
 
 
   <!-- MAIN APPLICATION -->
-  <div id="app" class="app-container hidden">
+  <div id="app" class="app-layout hidden">
 
     <!-- SIDEBAR -->
     <aside class="sidebar">
 
       <div class="sidebar-brand">
-        <div class="brand-logo small-logo">EMS</div>
-        <div>
-          <h2>EMS</h2>
-          <span>Management Portal</span>
-        </div>
+        <h2>EMS</h2>
+        <p>Employee Management</p>
       </div>
 
       <div class="sidebar-user">
-        <div class="user-avatar" id="userAvatar">U</div>
-        <div class="user-info">
-          <strong id="sidebarUserName">User</strong>
-          <span id="sidebarUserRole">Employee</span>
+
+        <div id="userAvatar" class="avatar">U</div>
+
+        <div class="sidebar-user-info">
+          <h3 id="sidebarUserName">User</h3>
+          <p id="sidebarUserRole">Role</p>
         </div>
+
       </div>
 
-      <nav class="sidebar-nav">
-
-        <p class="nav-heading">MAIN MENU</p>
+      <nav class="sidebar-navigation">
 
         <button class="nav-button active" data-page="dashboard">
-          <span>▦</span> Dashboard
+          <span>Dashboard</span>
         </button>
 
-        <button class="nav-button manager-only" data-page="employees">
-          <span>♙</span> Employee Details
+        <button class="nav-button manager-only hidden" data-page="employees">
+          <span>Employee Details</span>
         </button>
 
         <button class="nav-button" data-page="leave">
-          <span>▤</span> Leave Management
+          <span>Leave Management</span>
         </button>
 
-        <button class="nav-button" data-page="attendance">
-          <span>◷</span> Attendance
+        <button class="nav-button manager-only hidden" data-page="reports">
+          <span>Reports</span>
         </button>
-
-        <button class="nav-button manager-only" data-page="reports">
-          <span>▥</span> Reports
-        </button>
-
-        <p class="nav-heading">ACCOUNT</p>
 
         <button class="nav-button" data-page="settings">
-          <span>⚙</span> Settings
+          <span>Settings</span>
         </button>
 
       </nav>
 
-      <div class="sidebar-bottom">
+      <div class="sidebar-footer">
         <button id="logoutButton" class="logout-button">
-          ⇥ Logout
+          Logout
         </button>
       </div>
 
     </aside>
 
 
-    <!-- MAIN CONTENT -->
+    <!-- MAIN CONTENT AREA -->
     <main class="main-content">
 
-      <header class="topbar">
+      <!-- TOP HEADER -->
+      <header class="top-header">
 
         <div>
           <h1 id="pageTitle">Dashboard</h1>
-          <p>Employee Management System</p>
         </div>
 
-        <div class="topbar-user">
+        <div class="header-user">
+
           <span id="headerUserName">User</span>
-          <div class="user-avatar header-avatar" id="headerAvatar">U</div>
+
+          <div id="headerAvatar" class="avatar">
+            U
+          </div>
+
         </div>
 
       </header>
 
+
+      <!-- DYNAMIC PAGE CONTENT -->
       <section id="pageContent" class="page-content">
 
         <div class="loading-message">
-          Loading your dashboard...
+          Loading application...
         </div>
 
       </section>
-
-      <footer class="app-footer">
-        Employee Management System
-      </footer>
 
     </main>
 
   </div>
 
 
-  <!-- APPLICATION JAVASCRIPT -->
+  <!-- JAVASCRIPT -->
   <script type="module" src="app.js"></script>
 
 </body>
