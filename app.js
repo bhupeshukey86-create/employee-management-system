@@ -1,4 +1,3 @@
-
 // ============================================
 // EMPLOYEE MANAGEMENT SYSTEM
 // Firebase Authentication + Firestore
@@ -93,9 +92,6 @@ function setLoading(button, loading, originalText) {
 function normalizeEmployeeId(employeeId) {
   return employeeId.trim().toLowerCase();
 }
-
-// Employee IDs are converted into internal Firebase login emails.
-// Employees only need to enter their Employee ID.
 
 function employeeLoginEmail(employeeId) {
   return `${normalizeEmployeeId(employeeId)}@employee-management-system-v1.firebaseapp.com`;
@@ -620,9 +616,6 @@ async function createEmployee(event) {
 
   try {
 
-    // Create account using the secondary Firebase Authentication instance.
-    // The manager's primary login remains unchanged.
-
     const credential = await createUserWithEmailAndPassword(
       employeeAuth,
       internalEmail,
@@ -632,7 +625,7 @@ async function createEmployee(event) {
     const employeeUid = credential.user.uid;
 
     try {
-      // Create both Firestore records together.
+
       const batch = writeBatch(db);
 
       const employeeRef = doc(db, "employees", employeeUid);
@@ -663,6 +656,7 @@ async function createEmployee(event) {
       await batch.commit();
 
     } catch (firestoreError) {
+
       console.error(firestoreError);
 
       message.innerHTML = `
@@ -710,6 +704,7 @@ async function createEmployee(event) {
   } finally {
 
     await signOut(employeeAuth).catch(console.error);
+
     setLoading(button, false, "Create Employee Account");
 
   }
@@ -726,6 +721,8 @@ async function loadEmployeeTable() {
   const area = document.getElementById("employeeTableArea");
 
   if (!area || currentRole !== "manager") return;
+
+  area.innerHTML = "Loading employees...";
 
   try {
 
@@ -745,6 +742,7 @@ async function loadEmployeeTable() {
     snapshot.forEach(employeeDoc => {
 
       const employee = employeeDoc.data();
+      const isActive = employee.status === "Active";
 
       rows += `
         <tr>
@@ -752,14 +750,25 @@ async function loadEmployeeTable() {
           <td>${escapeHTML(employee.employeeName)}</td>
           <td>${escapeHTML(employee.department || "-")}</td>
           <td>${escapeHTML(employee.designation || "-")}</td>
+
           <td>
             <span class="status ${
-              employee.status === "Active"
-                ? "status-active"
-                : "status-inactive"
+              isActive ? "status-active" : "status-inactive"
             }">
-              ${escapeHTML(employee.status)}
+              ${escapeHTML(employee.status || "Unknown")}
             </span>
+          </td>
+
+          <td>
+            ${
+              isActive
+                ? `<button type="button"
+                    class="action-button discontinue-button"
+                    data-employee-uid="${escapeHTML(employeeDoc.id)}">
+                    Discontinue
+                  </button>`
+                : `<span class="inactive-label">Discontinued</span>`
+            }
           </td>
         </tr>
       `;
@@ -776,12 +785,28 @@ async function loadEmployeeTable() {
               <th>Department</th>
               <th>Designation</th>
               <th>Status</th>
+              <th>Action</th>
             </tr>
           </thead>
+
           <tbody>${rows}</tbody>
+
         </table>
       </div>
     `;
+
+    area.querySelectorAll(".discontinue-button").forEach(button => {
+
+      button.addEventListener("click", async () => {
+
+        await discontinueEmployee(
+          button.dataset.employeeUid,
+          button
+        );
+
+      });
+
+    });
 
   } catch (error) {
 
@@ -799,7 +824,86 @@ async function loadEmployeeTable() {
 
 
 // ============================================
-// 13. SETTINGS PAGE
+// 13. DISCONTINUE EMPLOYEE
+// ============================================
+
+async function discontinueEmployee(employeeUid, button) {
+
+  if (currentRole !== "manager" || !currentUser || !employeeUid) {
+    alert("Only the manager can discontinue an employee.");
+    return;
+  }
+
+  const confirmed = confirm(
+    "Are you sure you want to discontinue this employee?\n\n" +
+    "The employee's login access will be disabled. " +
+    "Their employee records will be preserved and will not be deleted."
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  const originalText = button.textContent;
+
+  button.disabled = true;
+  button.textContent = "Processing...";
+
+  try {
+
+    const employeeRef = doc(db, "employees", employeeUid);
+    const authorizationRef = doc(db, "authorizedUsers", employeeUid);
+
+    const batch = writeBatch(db);
+
+    batch.update(employeeRef, {
+      status: "Inactive",
+      updatedAt: serverTimestamp(),
+      discontinuedAt: serverTimestamp(),
+      discontinuedBy: currentUser.email || currentUser.uid
+    });
+
+    batch.update(authorizationRef, {
+      active: false,
+      updatedAt: serverTimestamp()
+    });
+
+    await batch.commit();
+
+    alert(
+      "Employee discontinued successfully.\n" +
+      "Login access has been disabled and employee records are preserved."
+    );
+
+    await loadEmployeeTable();
+
+  } catch (error) {
+
+    console.error("Employee discontinuation failed:", error);
+
+    button.disabled = false;
+    button.textContent = originalText;
+
+    if (error.code === "permission-denied") {
+
+      alert(
+        "Permission denied. Please check your Firestore Rules. " +
+        "Both employee and authorizedUsers documents must allow manager updates."
+      );
+
+    } else {
+
+      alert("Unable to discontinue this employee. Please try again.");
+
+    }
+
+  }
+
+}
+
+
+// ============================================
+// 14. SETTINGS PAGE
 // ============================================
 
 function renderSettings() {
@@ -833,7 +937,7 @@ function renderSettings() {
 
 
 // ============================================
-// 14. PLACEHOLDER PAGES
+// 15. PLACEHOLDER PAGES
 // ============================================
 
 function renderPlaceholder(title) {
@@ -841,9 +945,11 @@ function renderPlaceholder(title) {
   document.getElementById("pageContent").innerHTML = `
     <div class="panel">
       <h2 class="section-title">${escapeHTML(title)}</h2>
+
       <div class="empty-state">
         This module will be developed in the next stage.
       </div>
+
     </div>
   `;
 
@@ -851,16 +957,20 @@ function renderPlaceholder(title) {
 
 
 // ============================================
-// 15. LOGOUT
+// 16. LOGOUT
 // ============================================
 
 document.getElementById("logoutButton").addEventListener("click", async () => {
 
   try {
+
     await signOut(auth);
+
   } catch (error) {
+
     console.error("Logout failed:", error);
     alert("Unable to log out. Please try again.");
+
   }
 
 });
